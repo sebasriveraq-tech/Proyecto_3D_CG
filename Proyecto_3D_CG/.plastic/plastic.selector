@@ -1,0 +1,4 @@
+repository "Proyecto_3D_CG/Proyecto_3D_CG@4673416957423@cloud"
+  path "/"
+    br "/main"
+    co "/main"
