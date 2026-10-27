@@ -32,6 +32,9 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        // Si el juego esta en pausa (Time.timeScale = 0) el jugador no se mueve ni gira la camara.
+        if (Time.timeScale == 0f) return;
+
         MirarConMouse();
         MoverConTeclado();
     }

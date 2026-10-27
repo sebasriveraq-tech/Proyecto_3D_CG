@@ -304,4 +304,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InteractionController
   camara: {fileID: 2325990461058369334}
-  distancia: 3
+  distancia: 4
