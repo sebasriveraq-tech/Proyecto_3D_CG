@@ -29,6 +29,9 @@ public class InteractionController : MonoBehaviour
 
     private void Update()
     {
+        // Si el juego esta en pausa, no se detectan objetos ni se interactua.
+        if (Time.timeScale == 0f) return;
+
         DetectarObjeto();
 
         if (Keyboard.current != null &&

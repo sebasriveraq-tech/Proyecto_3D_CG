@@ -30,6 +30,9 @@ public class PlayerHealth : MonoBehaviour
 
     private void Update()
     {
+        // Si el juego esta en pausa, la tecla K no hace dano.
+        if (Time.timeScale == 0f) return;
+
         // TEMPORAL: tecla K para probar el HUD y el cooldown mientras no hay agentes.Se borra cuando el AgentController haga dano de verdad.
         
         if (Keyboard.current != null && Keyboard.current.kKey.wasPressedThisFrame)

@@ -27,6 +27,7 @@ public class UIManager : MonoBehaviour
 
     [Header("Panel de inventario")]
     public TextMeshProUGUI textoInventarioPanel;
+    public TextMeshProUGUI textoCodigosPanel;
 
     [Header("Colores de la barra de vida")]
     public Color colorVidaAlta = new Color(0.239f, 0.863f, 0.518f);   // verde
@@ -51,6 +52,7 @@ public class UIManager : MonoBehaviour
         if (GameManager.Instance == null) return;
         ActualizarVida(GameManager.Instance.vidaJugador, 100);
         ActualizarInventario(GameManager.Instance.inventario);
+        ActualizarCodigos(GameManager.Instance.codigos);
     }
 
     // ---------------------------------------------------------------
@@ -123,6 +125,28 @@ public class UIManager : MonoBehaviour
         if (string.IsNullOrEmpty(id)) return "";
         string nombre = id.Replace("_", " ");
         return char.ToUpper(nombre[0]) + nombre.Substring(1);
+    }
+
+    // Codigos descubiertos: "codigo_a" se muestra como "CÓDIGO A".
+    // El ID completo queda en el GameManager para que Z3 lo pueda consultar.
+    public void ActualizarCodigos(List<string> codigos)
+    {
+        string contenido = "";
+        if (codigos != null)
+        {
+            for (int i = 0; i < codigos.Count; i++)
+                contenido += "- CÓDIGO " + FormatearCodigo(codigos[i]) + "\n";
+        }
+        if (contenido == "") contenido = "Sin códigos";
+
+        if (textoCodigosPanel != null)
+            textoCodigosPanel.text = "CÓDIGOS\n" + contenido;
+    }
+
+    private string FormatearCodigo(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return "";
+        return id.Replace("codigo_", "").ToUpper();
     }
 
     public void MostrarMensaje(string mensaje, float duracion = 2f)

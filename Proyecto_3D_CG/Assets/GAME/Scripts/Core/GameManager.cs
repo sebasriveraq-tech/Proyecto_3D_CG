@@ -54,13 +54,13 @@ public class GameManager : MonoBehaviour
     }
 
     // INVENTARIO
-    public void AgregarItem(string id) { inventario.Add(id); }
+    public void AgregarItem(string id) { if (!inventario.Contains(id)) inventario.Add(id); }
     public bool TieneItem(string id) { return inventario.Contains(id); }
 
 
     // CODIGOS
   
-    public void AgregarCodigo(string codigo) { codigos.Add(codigo); }
+    public void AgregarCodigo(string codigo) { if (!codigos.Contains(codigo)) codigos.Add(codigo); }
     public bool TieneCodigo(string codigo) { return codigos.Contains(codigo); }
 
   
