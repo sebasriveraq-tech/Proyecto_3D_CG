@@ -34,6 +34,7 @@ Esta guía documenta **cómo quedaron armados** el Canvas, el jugador y el recog
 | `Puerta` | `Scripts/Interactables` | Pide un ítem; si lo tiene, sube como compuerta y carga la siguiente zona | No recoge ítems ni da códigos |
 | `ControlPaneles` | `Scripts/Core` | Teclas de los paneles: ENTER (partida nueva), C (continuar), ESC (pausa) e I (inventario) | No dibuja UI ni mueve al jugador |
 | `SaveManager` | `Scripts/Core` | Convierte el GameManager a JSON (`Guardar`), lo lee (`Cargar`) y borra el archivo (`BorrarGuardado`) | No tiene estado propio ni está en la escena: es una clase estática |
+| `AgentController` | `Scripts/Agents` | Con `NavMeshAgent`: persigue al jugador en 10 m, lo golpea a 1.8 m y vuelve a su punto de origen | No mueve al jugador, no dibuja UI ni decide la partida |
 
 **Flujo completo de una interacción (para contarlo de memoria):**
 
@@ -302,14 +303,15 @@ Prefab: `Assets/GAME/Prefabs/Player/Player.prefab`, instanciado en Z1, Z2 y Z3.
 | Colisiones | `Character Controller`: Center `(0, 1, 0)`, Height 2, Radius 0.4; **sin Capsule Collider** |
 | Cámara hija | `Camera`, posición local `(0, 1.6, 0)`, FOV 60, **Tag = MainCamera** |
 | `PlayerController` | `camara` → Camera hija; velocidad 4, correr 7, salto 5, gravedad -20, sensibilidad 0.12 |
-| `PlayerHealth` | vida 100, cooldown 1 s, espera de derrota 2 s |
+| `PlayerHealth` | vida 100, cooldown 1 s |
 | `InteractionController` | `camara` → Camera hija; distancia 4, `grosorRayo` 0.35 |
+| `NavMeshModifier` | **Ignore From Build** + Apply To Children (el jugador no se hornea en el NavMesh) |
 
 - El mouse se bloquea en `Start()` (`CursorLockMode.Locked`) y se libera al salir de Play.
 - En cada escena debe existir **una sola** cámara con Tag `MainCamera` y un solo `AudioListener`.
 - El Player *no* es `DontDestroyOnLoad`: cada escena instancia el prefab.
 
-**Controles:** WASD mover, mouse mirar, Shift correr, Espacio saltar. **K** es temporal para probar daño.
+**Controles:** WASD mover, mouse mirar, Shift correr, Espacio saltar, E interactuar. El daño ya no se prueba con teclas: lo produce el `Agente`.
 
 ---
 
@@ -411,7 +413,85 @@ Qué hace, paso a paso:
 
 ---
 
-## 7. GameManager en las escenas (prefab compartido)
+## 7. Agente enemigo y NavMesh
+
+Este bloque reemplaza la **tecla K temporal**: ahora el daño lo produce un enemigo que persigue al jugador por el escenario.
+
+### 7.1 Piezas nuevas
+
+| Pieza | Ruta | Qué hace |
+|-------|------|----------|
+| `AgentController` | `Scripts/Agents/AgentController.cs` | Detecta, persigue y golpea al jugador; vuelve a su punto de origen si lo pierde |
+| `Agente.prefab` | `Prefabs/Agents/Agente.prefab` | Enemigo con `NavMeshAgent`, cuerpo de cápsula y `NavMeshModifier` |
+| `Agente.mat` | `Materials/Agente.mat` | Material URP Lit rojo oscuro (`0.62, 0.1, 0.1`) |
+| Objeto `NavMesh` | `Zona1_Recepcion` | Contiene el `NavMeshSurface` y el `NavMeshData` horneado |
+| `NavMesh-NavMesh.asset` | `Scenes/Zona1_Recepcion/` | Malla de navegación que genera el **Bake** |
+
+> `com.unity.ai.navigation` **ya estaba** en `Packages/manifest.json`; no se instaló nada nuevo. Se usa el componente `NavMeshSurface` (el flujo moderno), no la ventana `Navigation` antigua.
+
+### 7.2 El prefab `Agente`
+
+| Elemento | Valor |
+|----------|-------|
+| Raíz | `Agente`, posición `(0, 0, 0)`, escala 1 |
+| `NavMeshAgent` | Radius 0.4, Speed **3.5**, Acceleration 8, Angular Speed 270, Height 2, Obstacle Avoidance **High Quality**, Auto Braking / Auto Repath activos |
+| `NavMeshModifier` | **Ignore From Build** activo, Apply To Children activo |
+| Hijo `Cuerpo` | Cápsula (mesh built-in), posición local `(0, 1, 0)`, escala `(0.9, 1, 0.9)` |
+| Collider del cuerpo | `Capsule Collider` radio 0.5, alto 2, centro `(0, 0, 0)` |
+| Material | `Agente.mat` (rojo oscuro) |
+
+**Por qué el `NavMeshModifier` en el agente:** el horneado toma los **meshes visibles** como geometría caminable. Sin el modificador, la cápsula del agente se hornearía como un bulto sobre el piso y el propio agente quedaría trepado encima. Con *Ignore From Build* el agente no participa del horneado.
+
+### 7.3 El `NavMeshSurface` y el Bake
+
+En `Zona1_Recepcion` hay un objeto vacío llamado **`NavMesh`** con un `NavMeshSurface`:
+
+| Ajuste | Valor |
+|--------|-------|
+| Agent Type | Humanoid |
+| Collect Objects | **All** (toda la escena) |
+| Include Layers | Everything |
+| Use Geometry | **Render Meshes** |
+| Default Area | Walkable |
+| Generate Links | desactivado |
+| Ignore NavMesh Agent | **activado** (los agentes no se hornean solos) |
+| Ignore NavMesh Obstacle | desactivado |
+| NavMesh Data | `NavMesh-NavMesh.asset` |
+
+**Cómo se hornea (paso manual en el editor):** seleccionar el objeto `NavMesh` → Inspector → botón **Bake**. Unity crea la carpeta `Assets/GAME/Scenes/Zona1_Recepcion/` y guarda allí `NavMesh-NavMesh.asset`, que queda referenciado por el `NavMeshSurface`. La malla se guarda en disco: **no se hornea en tiempo de ejecución**, así que el agente ya encuentra suelo al primer frame.
+
+> Si se cambia la geometría de la zona (paredes, muebles, piso), hay que volver a pulsar **Bake**. Un agente que "atraviesa paredes" o "se queda quieto" casi siempre significa que el NavMesh está viejo o no existe.
+
+### 7.4 El `NavMeshModifier` del Player
+
+Al `Player.prefab` se le agregó un `NavMeshModifier` con **Ignore From Build** y **Apply To Children**. Así el jugador tampoco se hornea como obstáculo y el piso bajo él queda limpio. El `CharacterController` no se usa para el horneado (solo se toman meshes), pero el modificador deja la regla explícita.
+
+### 7.5 Qué hace `AgentController`
+
+| Campo | Valor | Para qué |
+|-------|-------|----------|
+| `distanciaDeteccion` | **10** | desde aquí empieza a perseguir |
+| `distanciaAtaque` | **1.8** | distancia a la que golpea |
+| `dano` | **10** | vida que quita por golpe |
+| `cooldownDano` | **1.5 s** | separación mínima entre golpes |
+
+1. En `Start()` guarda su posición inicial (`puntoInicial`), busca al jugador con `FindFirstObjectByType<PlayerHealth>()` y ajusta `agente.stoppingDistance = distanciaAtaque * 0.8` (≈ 1.44 m) para no empujarlo.
+2. En cada `Update()` calcula la distancia al jugador.
+3. Si está a 10 m o menos, `agente.SetDestination(posicionJugador)`; si no, vuelve a `puntoInicial`.
+4. Si está a 1.8 m o menos y pasó el cooldown, llama `saludJugador.RecibirDano(dano)` y reinicia el temporizador.
+5. Si `Time.timeScale == 0` (pausa o panel final) o no hay jugador, no hace nada.
+
+**Quién pone el daño:** el agente. `PlayerHealth` ya no lee teclas; solo expone `RecibirDano(int)`, que es el mismo método que usaba la tecla K temporal. Por eso el cooldown sigue siendo doble: uno en el agente (1.5 s entre ataques) y otro en `PlayerHealth` (1 s entre daños), como red de seguridad.
+
+### 7.6 Instancia en Z1
+
+El `Agente.prefab` está instanciado en `Zona1_Recepcion` en **`(8, 0, 8)`**, lejos del punto de aparición del jugador (origen). Al caminar hacia esa esquina, el agente aparece a menos de 10 m y empieza a perseguir.
+
+> **Para Iván y Samuel:** Z2 y Z3 necesitan su **propio** objeto `NavMesh` con `NavMeshSurface` y su propio **Bake**. El `Agente.prefab` y el script son compartidos: basta arrastrarlo a la escena y hornear. Sin NavMesh, el agente se queda clavado en el aire y Unity muestra `SetDestination` sin efecto.
+
+---
+
+## 8. GameManager en las escenas (prefab compartido)
 
 Ahora el GameManager sigue la misma regla que el Canvas y el Player: **un prefab, una instancia en cada escena**.
 
@@ -423,7 +503,7 @@ Ahora el GameManager sigue la misma regla que el Canvas y el Player: **un prefab
 
 **Ventaja de tenerlo en las 4 escenas:** Iván y Samuel pueden abrir Z2 o Z3 directamente en el editor y el HUD arranca con vida 100, inventario vacío y sin errores de referencia; no necesitan entrar desde el menú.
 
-### 7.1 Guardado y carga (`SaveManager`)
+### 8.1 Guardado y carga (`SaveManager`)
 
 `SaveManager` es una clase **estática** (no es MonoBehaviour, no va en la escena). Recibe el estado del GameManager, lo escribe en un JSON y lo vuelve a leer.
 
@@ -464,7 +544,7 @@ En Windows, por ejemplo: `C:/Users/User/AppData/LocalLow/DefaultCompany/Proyecto
 
 ---
 
-## 8. Verificación realizada en el editor
+## 9. Verificación realizada en el editor
 
 | Prueba | Resultado |
 |--------|-----------|
@@ -488,6 +568,10 @@ En Windows, por ejemplo: `C:/Users/User/AppData/LocalLow/DefaultCompany/Proyecto
 | Paneles finales con botones | Prueba temporal (borrada al terminar) que recorre el flujo invocando `Button.onClick.Invoke()`: **Victoria** muestra 2 botones (`JugarDeNuevo`, `VolverAlMenu`), `timeScale = 0`, mouse libre, HUD oculto y `guardado.json` borrado; **Derrota** muestra 2 botones (`Reintentar`, `VolverAlMenu`) con vida 0 |
 | Botón JUGAR DE NUEVO | Carga `Zona1_Recepcion`, `timeScale = 1`, vida 100, HUD visible y checkpoint nuevo guardado |
 | Botones REINTENTAR y MENÚ PRINCIPAL | REINTENTAR recarga la zona con vida 100 y `timeScale = 1`; MENÚ PRINCIPAL carga `Menu` con `timeScale = 1` y el Panel_Menu visible |
+| NavMesh horneado en Z1 | Prueba temporal (borrada al terminar): `NavMesh.SamplePosition` bajo el jugador devuelve **True**; el agente está sobre la malla y su `speed` es **3.5** |
+| Persecución del agente | A **11.3 m** (fuera de los 10 m) no se mueve en 2 s. Al acercar al jugador a **6 m**, persigue y la distancia baja a **3.5 m** en 1 s |
+| Daño del agente | El agente se detiene a **0.9 m**: vida **100 → 80** a los 4 s y **60** a los 6 s, es decir 10 de daño cada ~1.5 s |
+| Tecla K eliminada | `PlayerHealth` ya no incluye `Update()` ni `using UnityEngine.InputSystem;`; compila y el HUD sigue actualizándose solo con el daño del agente |
 
 > Aviso del editor: al entrar a Play pueden aparecer 5 errores `NoSubscription` de `generators.ai.unity.com`. Provienen del paquete **Unity AI Assistant** del editor, no del proyecto. No afectan la compilación ni la ejecución y no hay que "arreglarlos" en el código.
 
@@ -495,7 +579,7 @@ En Windows, por ejemplo: `C:/Users/User/AppData/LocalLow/DefaultCompany/Proyecto
 
 ---
 
-## 9. Errores encontrados y corregidos
+## 10. Errores encontrados y corregidos
 
 | # | Síntoma | Causa | Corrección |
 |---|---------|-------|------------|
@@ -520,17 +604,25 @@ En Windows, por ejemplo: `C:/Users/User/AppData/LocalLow/DefaultCompany/Proyecto
 | 19 | `JsonUtility` no guardaba las puertas ni los objetivos | `Dictionary` no es serializable por `JsonUtility` | Se convierte a `List<ParBool>` al guardar y se reconstruye el `Dictionary` al cargar |
 | 20 | Aviso "scene modified externally" al editar los `.unity` con Unity abierto | Los cambios se hicieron desde el editor de texto | En el diálogo se elige **Reload**; la escena conserva los valores del archivo |
 | 21 | Los botones nuevos de Victoria/Derrota no aparecían en Play, aunque el resto del prefab sí | Los `fileID` usados eran `9300000000000000001` y `9400000000000000001`, y el máximo de un entero de 64 bits es `9223372036854775807` (empieza por **9223…**). Unity descartó todos los bloques con ese error y el prefab se importó incompleto | Se renumeraron a la banda `8900000000000000…` (victoria) y `8800000000000000…` (derrota), muy por debajo del límite. En el Editor log el síntoma era `Failed to convert 9300000000000000002 to a signed 64 bit int` y `Problem detected while importing the Prefab file` |
+| 22 | El agente se quedaba quieto o flotando y `SetDestination` no hacía nada | La escena no tenía NavMesh: el `NavMeshAgent` no encuentra suelo y no puede trazarse ruta | Se agregó el objeto `NavMesh` con `NavMeshSurface` y se pulsó **Bake** (genera `NavMesh-NavMesh.asset`) |
+| 23 | El NavMesh tenía un bulto donde aparece el agente y la ruta se pegaba a él | El horneado toma los meshes visibles: la cápsula del agente (y el Player) se horneaban como geometría | `NavMeshModifier` con **Ignore From Build** en `Agente.prefab` y en `Player.prefab` |
+| 24 | El daño solo se podía probar con la tecla **K** temporal | No existía un atacante real en la escena | Se quitó el `Update()` de `PlayerHealth` y el daño pasó a `AgentController` → `PlayerHealth.RecibirDano` |
 
 ---
 
-## 10. Checklist de prueba (lo que se muestra al docente)
+## 11. Checklist de prueba (lo que se muestra al docente)
 
 - [ ] TMP Essentials importado (existe `Assets/TextMesh Pro` y los textos tienen fuente).
 - [ ] Las 4 escenas tienen una **instancia del mismo** `Canvas_Principal` (no Canvas nuevos).
 - [ ] Z1, Z2 y Z3 tienen una **instancia del mismo** `Player.prefab`.
 - [ ] Las 4 escenas tienen una **instancia del mismo** `GameManager.prefab` (`Prefabs/Core`).
 - [ ] El HUD muestra `VIDA: 100 / 100` y la barra llena al iniciar.
-- [ ] Tecla **K** (temporal) baja 10 de vida y actualiza barra y texto; el **cooldown de 1 s** impide bajar más de un golpe por segundo.
+- [ ] En Z1 existe un objeto `NavMesh` con `NavMeshSurface` y su `NavMesh-NavMesh.asset` generado por **Bake**.
+- [ ] El `Agente` aparece en `(8, 0, 8)` y **solo** persigue cuando el jugador entra en 10 m.
+- [ ] El agente rodea muebles y paredes (no las atraviesa) y se detiene a ~0.9 m del jugador.
+- [ ] Al alcance, el agente quita **10 de vida cada ~1.5 s** y la barra del HUD baja.
+- [ ] Si el jugador se aleja más de 10 m, el agente vuelve a su punto de origen.
+- [ ] Con el juego en pausa o en un panel final, el agente no se mueve ni golpea.
 - [ ] Al llegar a 0 aparece **TE NEUTRALIZARON** con dos botones: **REINTENTAR** y **MENÚ PRINCIPAL**. El juego queda congelado y el mouse libre.
 - [ ] **REINTENTAR** vuelve al último checkpoint con vida 100; **MENÚ PRINCIPAL** lleva al menú, en ambos casos con el tiempo corriendo otra vez.
 - [ ] En victoria, **JUGAR DE NUEVO** empieza una partida limpia desde Z1 y **MENÚ PRINCIPAL** vuelve al menú.
@@ -552,7 +644,7 @@ En Windows, por ejemplo: `C:/Users/User/AppData/LocalLow/DefaultCompany/Proyecto
 
 ---
 
-## 11. Preguntas típicas de sustentación
+## 12. Preguntas típicas de sustentación
 
 **¿Por qué el Canvas es un prefab y no se crea en cada escena?**
 Porque la interfaz debe ser idéntica en las 4 escenas y un solo cambio se propaga a todas. Además cumple la regla de un único Canvas con paneles internos.
@@ -570,7 +662,7 @@ Para que el agente no quite vida en cada frame. Se compara `Time.time` con el mo
 Porque para un FPS simple da movimiento directo, gravedad y colisiones sin configurar física; además se explica en una sola clase.
 
 **¿Dónde se usa el New Input System?**
-En `Keyboard.current` y `Mouse.current` de `PlayerController`, `InteractionController`, `PlayerHealth` (tecla K de prueba) y `ControlPaneles` (ENTER, C, ESC e I). No se usa `Input.GetAxis` en ningún script.
+En `Keyboard.current` y `Mouse.current` de `PlayerController`, `InteractionController` y `ControlPaneles` (ENTER, C, ESC e I). No se usa `Input.GetAxis` en ningún script. `PlayerHealth` ya no lee teclas: recibe daño por método.
 
 **¿Por qué `Interactable` es abstracta?**
 Porque define el contrato (`Interactuar()`) y obliga a que cada objeto concreto escriba su comportamiento: recoger, abrir, activar, etc. El `InteractionController` solo conoce la base.
@@ -641,16 +733,47 @@ Porque sería un tercer camino que no está en el diseño y podría dejar el jue
 **¿Cómo se conectó el botón con el código sin escribir nada en la escena?**
 El `OnClick` del `Button` apunta al componente `ControlPaneles` **dentro del prefab del Canvas**, por su `fileID` local. Al ser todos parte del mismo prefab, las 4 escenas heredan el cableado y no hay referencias que se rompan.
 
+**¿Qué es un NavMesh y por qué no basta con mover al agente con `transform.position`?**
+Es una malla de polígonos caminables que Unity calcula a partir del escenario. El `NavMeshAgent` la usa para trazar rutas: rodea paredes y muebles y evita atravesarlos. Mover el agente con `transform.position` lo haría chocar con todo, porque nadie calcularía el camino.
+
+**¿Por qué el NavMesh se hornea en el editor y no en tiempo de ejecución?**
+Porque el `NavMeshAgent` necesita la malla **antes del primer frame**. Si se horneara en `Start()` con un `NavMeshSurface.BuildNavMesh()`, el agente podría inicializarse antes de que la malla exista y quedarse quieto. Horneando con el botón **Bake**, la malla se guarda en `NavMesh-NavMesh.asset` y viaja con la escena.
+
+**¿Qué pasa si muevo las paredes de la zona?**
+Hay que volver a pulsar **Bake** en el objeto `NavMesh`. La malla guardada no se actualiza sola: el agente seguiría caminando por donde estaban las paredes viejas.
+
+**¿Por qué el agente lleva un `NavMeshModifier` con Ignore From Build?**
+Porque el horneado toma los meshes visibles. Sin el modificador, la cápsula del agente se hornearía como un montículo en el piso y él mismo quedaría encima de ese bulto. El modificador lo excluye de la geometría caminable. Lo mismo se aplicó al Player.
+
+**¿Por qué la detección es de 10 m y no de toda la escena?**
+Porque así el enemigo tiene un radio de comportamiento claro y el jugador puede esconderse: si sale de los 10 m, el agente vuelve a su punto de origen. Un agente que persigue desde cualquier distancia no deja jugar.
+
+**¿Por qué `stoppingDistance = distanciaAtaque * 0.8`?**
+Para que el agente frene antes del alcance y no empuje al jugador con su collider. El cálculo usa el campo `distanciaAtaque`, así que si se cambia el alcance, la parada se ajusta sola.
+
+**¿Dónde se aplica el daño?**
+`AgentController` llama `PlayerHealth.RecibirDano(10)` cuando está a 1.8 m y pasó su cooldown de 1.5 s. `PlayerHealth` conserva además su propio cooldown de 1 s, de modo que dos enemigos juntos tampoco pueden bajar la vida en cada frame.
+
+**¿Por qué hay dos cooldowns?**
+El del agente regula **cada enemigo**; el de `PlayerHealth` protege **al jugador** si en el futuro hay varios agentes golpeando a la vez. Es una defensa en dos capas y no cuesta nada.
+
+**¿Qué pasa con el agente cuando el juego está en pausa?**
+Su `Update()` sale de inmediato si `Time.timeScale == 0`, así que no recalcula destinos ni ataca. Además, un `NavMeshAgent` con el tiempo detenido no avanza. Al reanudar, continúa donde estaba.
+
+**¿El agente gira o corre una animación?**
+No. Por ahora es una cápsula roja que se traslada; `NavMeshAgent` también la orienta hacia la dirección de movimiento. Las animaciones y el modelo definitivo son de un bloque posterior.
+
 **¿Cómo se reconstruyen las estructuras al cargar?**
 `DatosGuardado` trae `List<string>` y `List<ParBool>`; al cargar, las listas se asignan al GameManager y cada `ParBool` se vuelve a meter en el `Dictionary` con `puertas[clave] = valor`. Así el JSON guarda contenido plano y el juego recupera sus `Dictionary`.
 
 ---
 
-## 12. Siguiente bloque del itinerario
+## 13. Siguiente bloque del itinerario
 
 | Fecha | Tarea |
 |-------|-------|
-| 27-28 oct | **Hecho:** ESC (pausa), I (inventario), las 4 escenas en Build Settings, `Terminal` + `Puerta` en Z1 con cambio a Z2, sección `CÓDIGOS` del inventario y `GameManager` como prefab en las 4 escenas. **Falta:** `AgentController` base + NavMesh, AudioManager |
-| 29-30 oct | **Hecho:** `SaveManager`/`DatosGuardado` con JSON en `persistentDataPath`, guardado al cambiar de escena, carga al morir (checkpoint), ENTER = partida nueva y C = continuar (verificado con prueba automática). **Falta:** FSM del agente |
+| 27-28 oct | **Hecho:** ESC (pausa), I (inventario), las 4 escenas en Build Settings, `Terminal` + `Puerta` en Z1 con cambio a Z2, sección `CÓDIGOS` del inventario y `GameManager` como prefab en las 4 escenas. |
+| 29-30 oct | **Hecho:** `SaveManager`/`DatosGuardado` con JSON en `persistentDataPath`, guardado al cambiar de escena, carga al morir (checkpoint), ENTER = partida nueva y C = continuar (verificado con prueba automática). |
 | 2 nov | **Hecho:** victoria/derrota con botones (JUGAR DE NUEVO / REINTENTAR / MENÚ PRINCIPAL), congelado del juego, mouse libre y borrado del guardado al ganar. **Falta:** conectar `GanarPartida()` al objeto final de Z3 |
-| Siguiente bloque | `AgentController` + NavMesh, quitar la tecla K temporal y AudioManager |
+| 27 oct (adelanto) | **Hecho:** `AgentController` + `Agente.prefab` + `Agente.mat`, `NavMeshSurface` horneado en Z1, `NavMeshModifier` en Player y Agente, daño por contacto con cooldown e instancia en `(8, 0, 8)`. Se eliminó la tecla K temporal. |
+| Siguiente bloque | `AudioManager` (música y efectos), FSM del agente (patrulla / persecución / ataque) y NavMesh en Z2 y Z3 (Iván y Samuel) |

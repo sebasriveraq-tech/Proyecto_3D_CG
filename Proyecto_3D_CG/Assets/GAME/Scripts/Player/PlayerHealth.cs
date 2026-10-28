@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 
@@ -26,19 +25,7 @@ public class PlayerHealth : MonoBehaviour
         ActualizarHUD();
     }
 
-    private void Update()
-    {
-        // Si el juego esta en pausa, la tecla K no hace dano.
-        if (Time.timeScale == 0f) return;
-
-        // TEMPORAL: tecla K para probar el HUD y el cooldown mientras no hay agentes.Se borra cuando el AgentController haga dano de verdad.
-        
-        if (Keyboard.current != null && Keyboard.current.kKey.wasPressedThisFrame)
-            RecibirDano(10);
-    }
-
-   
-    // RECIBIR DAÑO (con cooldown)
+    // RECIBIR DAÑO (con cooldown): lo llama el AgentController cuando alcanza al jugador.
 
     public void RecibirDano(int cantidad)
     {
