@@ -195,9 +195,30 @@ Ambos usan tarjeta central y el mismo esquema: título arriba y subtítulo abajo
 | Panel | Tarjeta | Título (pos / tamaño / fuente) | Subtítulo (pos / tamaño / fuente) |
 |-------|---------|-------------------------------|-----------------------------------|
 | Victoria | `Card_Victoria` 760 × 380 | `VICTORIA` (0, 36) · 660 × 64 · 46 · **verde** `#3DDC84` | `Has recuperado todas las credenciales del laboratorio.` (0, -46) · 620 × 44 · 20 · gris |
-| Derrota | `Card_Derrota` 760 × 360 | `TE NEUTRALIZARON` (0, 36) · 680 × 64 · 44 · **rojo** `#FF5C5C` | `Serás reiniciado en la zona de control.` (0, -46) · 620 × 44 · 19 · gris |
+| Derrota | `Card_Derrota` 760 × 360 | `TE NEUTRALIZARON` (0, 36) · 680 × 64 · 44 · **rojo** `#FF5C5C` | `Vuelve al último punto de control o al menú.` (0, -46) · 620 × 44 · 19 · gris |
 
 > Antes los títulos estaban en `y = 110` y `y = 100`, y los subtítulos en `y = 28` y `y = 20`. El bloque quedaba pegado arriba y con un hueco abajo. Con `36 / -46` el contenido queda equidistante del borde superior e inferior.
+
+### 3.8.1 Botones de los paneles finales
+
+Cada tarjeta tiene **dos botones** debajo del subtítulo, en `y = -122`, de `280 × 56`:
+
+| Panel | Botón | Posición | Fondo | Texto | Método que ejecuta |
+|-------|-------|----------|-------|-------|--------------------|
+| Victoria | `BtnJugarDeNuevo` | (-170, -122) | verde `#3DDC84` | oscuro `#121A22` | `ControlPaneles.JugarDeNuevo()` |
+| Victoria | `BtnMenuVictoria` | (170, -122) | oscuro `#212B36` | claro `#EAF2F5` | `ControlPaneles.VolverAlMenu()` |
+| Derrota | `BtnReintentar` | (-170, -122) | rojo `#FF5C5C` | oscuro `#121A22` | `ControlPaneles.Reintentar()` |
+| Derrota | `BtnMenuDerrota` | (170, -122) | oscuro `#212B36` | claro `#EAF2F5` | `ControlPaneles.VolverAlMenu()` |
+
+Cada botón es un `Button` de UGUI con un hijo de texto (`TextMeshProUGUI`). El `OnClick()` apunta al componente `ControlPaneles` **dentro del mismo prefab**, por lo que funciona igual en las 4 escenas sin recablear nada.
+
+Los tres métodos cumplen la misma primera regla: **`Time.timeScale = 1f` antes de cambiar de escena**. El `timeScale` no se reinicia solo al cargar otra escena, así que sin esa línea el juego siguiente arrancaría congelado.
+
+| Método | Qué hace |
+|--------|----------|
+| `JugarDeNuevo()` | `IniciarPartidaNueva()`: vida 100, listas vacías y carga `Zona1_Recepcion` |
+| `Reintentar()` | `GameManager.ReiniciarDesdeCheckpoint()` (o recarga la zona si se probó sin GameManager) |
+| `VolverAlMenu()` | `SceneManager.LoadScene("Menu")` |
 
 ### 3.9 Paleta del proyecto
 
@@ -253,8 +274,21 @@ El componente va **en la raíz del prefab del Canvas**, junto a `UIManager`, as�
 
 - Al pausar se libera el mouse (`Cursor.lockState = None`) y al reanudar se vuelve a bloquear.
 - `PlayerController`, `InteractionController` y `PlayerHealth` empiezan su `Update()` con `if (Time.timeScale == 0f) return;`: con el juego congelado no se mueve la cámara, no se interactúa y la K no hace daño.
-- ESC solo pausa si el HUD está visible (en el menú no hace nada). ENTER solo actúa si el Panel_Menu está visible.
+- ESC solo pausa si el HUD está visible (en el menú no hace nada) y solo reanuda si el panel de pausa está abierto. **Victoria y Derrota no se cierran con ESC**: la partida terminó y la única salida son sus botones.
+- ENTER solo actúa si el Panel_Menu está visible.
 - Las 4 escenas están en `File > Build Settings` con `Menu` en el índice 0; sin eso `LoadScene` falla en el build.
+
+### 3.13 Flujo de Victoria y Derrota
+
+Los paneles finales no se comportan como la pausa: **no se pueden cerrar**, porque la partida ya terminó. El reparto de responsabilidades es:
+
+1. **`UIManager.MostrarVictoria()` / `MostrarDerrota()`** pintan el panel con `MostrarSolo()` y llaman a `CongelarParaBoton()`:
+   `Time.timeScale = 0f` (congela el mundo), `Cursor.lockState = None` y `Cursor.visible = true` (libera el mouse para que se pueda pulsar).
+2. **`GameManager.GanarPartida()`** es el punto de entrada de la victoria: borra el guardado (`SaveManager.BorrarGuardado()`, ya no hay nada que continuar) y llama a `UIManager.MostrarVictoria()`. Lo llamará el objeto final de la Zona 3.
+3. **`PlayerHealth.Morir()`** ya no espera 2 s ni recarga sola: solo marca `muerto = true` y llama a `UIManager.MostrarDerrota()`. El jugador decide con los botones (REINTENTAR o MENÚ PRINCIPAL).
+4. **`ControlPaneles`** ejecuta las acciones de los botones y **siempre devuelve `Time.timeScale = 1f`** antes de cargar otra escena.
+
+> Consecuencia práctica: mientras el panel de derrota esté abierto, la corrutina de muerte ya no existe, así que no hay doble recarga ni `WaitForSeconds` que se quede colgado con el tiempo en 0.
 
 ---
 
@@ -451,6 +485,9 @@ En Windows, por ejemplo: `C:/Users/User/AppData/LocalLow/DefaultCompany/Proyecto
 | Sección `CÓDIGOS` del panel de inventario | Verificada en Play con un script temporal (borrado al terminar): el panel muestra `INVENTARIO / - Credencial z1` arriba y `CÓDIGOS / - CÓDIGO A` en turquesa abajo, sin solaparse con el pie |
 | Estado real del HUD en Play | Prueba temporal (borrada) que lee los valores: `panelHUD` activo, `textoVida = "VIDA: 100 / 100"`, `barraVida.fillAmount = 1`, `textoInventario = "INVENTARIO / Sin objetos"`, `textoCodigosPanel = "CÓDIGOS / Sin códigos"`. El HUD no estaba roto: se veía recortado por el **zoom del Game view** (ver error 16) |
 | Terminal desde la posición real del jugador | El jugador se colocó en `(-2.5, 0, 1)` mirando en +Z (a 1.5 m de la terminal): el `SphereCast` devuelve `Terminal_Registro a 1.54 m`, el prompt pasa a `Presiona E para usar la terminal`, `Interactuar()` entrega `codigo_a` y en pantalla sale `Código obtenido: A-4721` |
+| Paneles finales con botones | Prueba temporal (borrada al terminar) que recorre el flujo invocando `Button.onClick.Invoke()`: **Victoria** muestra 2 botones (`JugarDeNuevo`, `VolverAlMenu`), `timeScale = 0`, mouse libre, HUD oculto y `guardado.json` borrado; **Derrota** muestra 2 botones (`Reintentar`, `VolverAlMenu`) con vida 0 |
+| Botón JUGAR DE NUEVO | Carga `Zona1_Recepcion`, `timeScale = 1`, vida 100, HUD visible y checkpoint nuevo guardado |
+| Botones REINTENTAR y MENÚ PRINCIPAL | REINTENTAR recarga la zona con vida 100 y `timeScale = 1`; MENÚ PRINCIPAL carga `Menu` con `timeScale = 1` y el Panel_Menu visible |
 
 > Aviso del editor: al entrar a Play pueden aparecer 5 errores `NoSubscription` de `generators.ai.unity.com`. Provienen del paquete **Unity AI Assistant** del editor, no del proyecto. No afectan la compilación ni la ejecución y no hay que "arreglarlos" en el código.
 
@@ -482,6 +519,7 @@ En Windows, por ejemplo: `C:/Users/User/AppData/LocalLow/DefaultCompany/Proyecto
 | 18 | El guardado fallaría en el build | El plan decía guardar en `StreamingAssets`, que en un build es de solo lectura | El JSON vive en `Application.persistentDataPath` (carpeta escribible del usuario) |
 | 19 | `JsonUtility` no guardaba las puertas ni los objetivos | `Dictionary` no es serializable por `JsonUtility` | Se convierte a `List<ParBool>` al guardar y se reconstruye el `Dictionary` al cargar |
 | 20 | Aviso "scene modified externally" al editar los `.unity` con Unity abierto | Los cambios se hicieron desde el editor de texto | En el diálogo se elige **Reload**; la escena conserva los valores del archivo |
+| 21 | Los botones nuevos de Victoria/Derrota no aparecían en Play, aunque el resto del prefab sí | Los `fileID` usados eran `9300000000000000001` y `9400000000000000001`, y el máximo de un entero de 64 bits es `9223372036854775807` (empieza por **9223…**). Unity descartó todos los bloques con ese error y el prefab se importó incompleto | Se renumeraron a la banda `8900000000000000…` (victoria) y `8800000000000000…` (derrota), muy por debajo del límite. En el Editor log el síntoma era `Failed to convert 9300000000000000002 to a signed 64 bit int` y `Problem detected while importing the Prefab file` |
 
 ---
 
@@ -493,12 +531,14 @@ En Windows, por ejemplo: `C:/Users/User/AppData/LocalLow/DefaultCompany/Proyecto
 - [ ] Las 4 escenas tienen una **instancia del mismo** `GameManager.prefab` (`Prefabs/Core`).
 - [ ] El HUD muestra `VIDA: 100 / 100` y la barra llena al iniciar.
 - [ ] Tecla **K** (temporal) baja 10 de vida y actualiza barra y texto; el **cooldown de 1 s** impide bajar más de un golpe por segundo.
-- [ ] Al llegar a 0 aparece **TE NEUTRALIZARON** y a los 2 s se recarga la zona con vida completa.
+- [ ] Al llegar a 0 aparece **TE NEUTRALIZARON** con dos botones: **REINTENTAR** y **MENÚ PRINCIPAL**. El juego queda congelado y el mouse libre.
+- [ ] **REINTENTAR** vuelve al último checkpoint con vida 100; **MENÚ PRINCIPAL** lleva al menú, en ambos casos con el tiempo corriendo otra vez.
+- [ ] En victoria, **JUGAR DE NUEVO** empieza una partida limpia desde Z1 y **MENÚ PRINCIPAL** vuelve al menú.
 - [ ] Mirar la credencial muestra el prompt con fondo; **E** la recoge, actualiza el inventario y desaparece.
 - [ ] En `Menu`, **ENTER** empieza una partida nueva y carga `Zona1_Recepcion` con vida 100 e inventario vacío.
 - [ ] Después de cruzar la puerta a Z2, existe `guardado.json` en `C:/Users/<usuario>/AppData/LocalLow/DefaultCompany/Proyecto_3D_CG` y contiene `"escenaActual": "Zona2_Laboratorio"`.
 - [ ] Al volver al `Menu` con una partida guardada, **C** abre la última zona y el HUD conserva el inventario y los códigos.
-- [ ] Al morir, la zona se recarga con vida completa y el progreso del último checkpoint (inventario, códigos, puertas).
+- [ ] Al pulsar **REINTENTAR** tras morir, la zona se recarga con vida completa y el progreso del último checkpoint (inventario, códigos, puertas).
 - [ ] En zona, **ESC** abre `PAUSA` y congela al jugador; **ESC** otra vez devuelve el HUD y bloquea el mouse.
 - [ ] En zona, **I** abre el `INVENTARIO` con la lista; **I** otra vez vuelve al HUD.
 - [ ] En Z1 no se ve el menú: solo el HUD (el override de `Panel_Menu` está en `0`).
@@ -581,7 +621,25 @@ Porque viene con Unity, no requiere paquetes y es suficiente para listas de `str
 En el **checkpoint**: justo antes de cambiar de zona (`CambiarEscena`) y al empezar una partida nueva. No se guarda cada frame ni la posición de los agentes: el JSON se escribe pocas veces y la partida se puede recuperar sin congelar el juego.
 
 **¿Qué pasa exactamente cuando el jugador muere?**
-`PlayerHealth` muestra `TE NEUTRALIZARON`, espera 2 s y llama `ReiniciarDesdeCheckpoint()`: `SaveManager.Cargar()` devuelve el progreso del último guardado, la vida vuelve a 100 y se recarga la zona donde murió. Lo que se hubiera recogido **después** del checkpoint se pierde, que es la definición de checkpoint.
+`PlayerHealth` marca `muerto = true` y muestra `TE NEUTRALIZARON`; el panel congela el juego y libera el mouse. Ahí el jugador elige: **REINTENTAR** llama `ReiniciarDesdeCheckpoint()` (`SaveManager.Cargar()`, vida 100 y recarga de la zona) o **MENÚ PRINCIPAL** carga el menú. Lo que se hubiera recogido **después** del checkpoint se pierde, que es la definición de checkpoint.
+
+**¿Por qué la muerte ya no recarga sola a los 2 segundos?**
+Porque el requisito del bloque es que el jugador decida con botones. Una corrutina con `WaitForSeconds` funcionaría, pero además obligaría a que la espera no se congelara con `Time.timeScale = 0` (habría que usar `WaitForSecondsRealtime`). Quitar la espera y dejar que el botón haga el trabajo es más simple y deja al jugador el control.
+
+**¿Por qué los botones tienen que devolver `Time.timeScale = 1f`?**
+Porque `Time.timeScale` es una propiedad **global** del motor y **no** se reinicia al cargar otra escena. Si un botón cargara la Zona 1 sin tocarla, la zona nueva arrancaría congelada y el jugador no se movería. Por eso `Reintentar`, `JugarDeNuevo` y `VolverAlMenu` empiezan con esa línea.
+
+**¿Por qué la victoria borra el guardado?**
+Porque la partida terminó: si se dejara `guardado.json`, el botón **Continuar** del menú volvería a abrir la Zona 3 como si nada y el final quedaría sin efecto. `GanarPartida()` llama `SaveManager.BorrarGuardado()` y luego muestra el panel.
+
+**¿Por qué hay dos botones en cada panel y no uno solo?**
+Porque cubren dos intenciones distintas: **volver a jugar** (desde el inicio en victoria, desde el checkpoint en derrota) y **salir al menú**. Un solo botón obligaría a adivinar qué quería el jugador.
+
+**¿Por qué ESC no cierra los paneles finales?**
+Porque sería un tercer camino que no está en el diseño y podría dejar el juego congelado si el panel se ocultara sin devolver `timeScale`. `ControlPaneles` solo reanuda si el panel de pausa está abierto; cualquier otra combinación se ignora.
+
+**¿Cómo se conectó el botón con el código sin escribir nada en la escena?**
+El `OnClick` del `Button` apunta al componente `ControlPaneles` **dentro del prefab del Canvas**, por su `fileID` local. Al ser todos parte del mismo prefab, las 4 escenas heredan el cableado y no hay referencias que se rompan.
 
 **¿Cómo se reconstruyen las estructuras al cargar?**
 `DatosGuardado` trae `List<string>` y `List<ParBool>`; al cargar, las listas se asignan al GameManager y cada `ParBool` se vuelve a meter en el `Dictionary` con `puertas[clave] = valor`. Así el JSON guarda contenido plano y el juego recupera sus `Dictionary`.
@@ -592,6 +650,7 @@ En el **checkpoint**: justo antes de cambiar de zona (`CambiarEscena`) y al empe
 
 | Fecha | Tarea |
 |-------|-------|
-| 27-28 oct | **Hecho:** ESC (pausa), I (inventario), las 4 escenas en Build Settings, `Terminal` + `Puerta` en Z1 con cambio a Z2, sección `CÓDIGOS` del inventario y `GameManager` como prefab en las 4 escenas. **Falta:** victoria/derrota con botones, `AgentController` base + NavMesh, AudioManager |
+| 27-28 oct | **Hecho:** ESC (pausa), I (inventario), las 4 escenas en Build Settings, `Terminal` + `Puerta` en Z1 con cambio a Z2, sección `CÓDIGOS` del inventario y `GameManager` como prefab en las 4 escenas. **Falta:** `AgentController` base + NavMesh, AudioManager |
 | 29-30 oct | **Hecho:** `SaveManager`/`DatosGuardado` con JSON en `persistentDataPath`, guardado al cambiar de escena, carga al morir (checkpoint), ENTER = partida nueva y C = continuar (verificado con prueba automática). **Falta:** FSM del agente |
-| 2 nov | Victoria/derrota con botones (reintentar / menú) y **HITO: núcleo transversal funcional** |
+| 2 nov | **Hecho:** victoria/derrota con botones (JUGAR DE NUEVO / REINTENTAR / MENÚ PRINCIPAL), congelado del juego, mouse libre y borrado del guardado al ganar. **Falta:** conectar `GanarPartida()` al objeto final de Z3 |
+| Siguiente bloque | `AgentController` + NavMesh, quitar la tecla K temporal y AudioManager |

@@ -2,7 +2,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
-/// ControlPaneles: teclas que abren los paneles del Canvas (ENTER para empezar, ESC para pausar, I para el inventario).
+/// ControlPaneles: teclas que abren los paneles del Canvas (ENTER para empezar, ESC para pausar, I para el inventario)
+/// y metodos que usan los botones de los paneles de Victoria y Derrota.
 public class ControlPaneles : MonoBehaviour
 {
     private void Update()
@@ -24,12 +25,13 @@ public class ControlPaneles : MonoBehaviour
             return;
         }
 
-        // ESC: si el juego esta congelado, lo reanuda; si el HUD esta visible, lo pausa.
+        // ESC: solo reanuda si el panel de pausa esta abierto; si el HUD esta visible, lo pausa.
+        // (Los paneles de Victoria y Derrota tienen botones y no se cierran con ESC.)
         if (Keyboard.current.escapeKey.wasPressedThisFrame)
         {
-            if (Time.timeScale == 0f)
+            if (UIManager.Instance.panelPausa.activeSelf)
                 Reanudar();
-            else if (UIManager.Instance.panelHUD.activeSelf)
+            else if (Time.timeScale > 0f && UIManager.Instance.panelHUD.activeSelf)
                 Pausar();
             return;
         }
@@ -63,6 +65,35 @@ public class ControlPaneles : MonoBehaviour
         if (GameManager.Instance == null || !GameManager.Instance.HayPartidaGuardada()) return;
 
         GameManager.Instance.ContinuarPartida();
+    }
+
+    // ---------------------------------------------------------------
+    // BOTONES DE LOS PANELES FINALES
+    // ---------------------------------------------------------------
+
+    // DERROTA: vuelve al ultimo checkpoint y recarga la zona con vida completa.
+    public void Reintentar()
+    {
+        Time.timeScale = 1f;   // el juego se congelo al mostrar el panel; hay que devolver el tiempo
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.ReiniciarDesdeCheckpoint();
+        else
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    // VICTORIA: empieza una partida limpia desde la Zona 1.
+    public void JugarDeNuevo()
+    {
+        Time.timeScale = 1f;
+        IniciarPartidaNueva();
+    }
+
+    // Los dos paneles: vuelve al menu principal.
+    public void VolverAlMenu()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene("Menu");
     }
 
     private void Pausar()

@@ -1,4 +1,3 @@
-using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -14,7 +13,6 @@ public class PlayerHealth : MonoBehaviour
 
     [Header("Dano")]
     public float cooldownDano = 1f;           // segundos entre golpes
-    public float esperaAntesDeReiniciar = 2f; // tiempo que se ve el panel de derrota
 
     private float proximoDanoPermitido = 0f;  // momento (Time.time) en que se puede volver a recibir dano
     private bool muerto = false;
@@ -60,7 +58,7 @@ public class PlayerHealth : MonoBehaviour
 
         ActualizarHUD();
 
-        if (vidaActual == 0) StartCoroutine(Morir());
+        if (vidaActual == 0) Morir();
     }
 
     private void ActualizarHUD()
@@ -70,26 +68,16 @@ public class PlayerHealth : MonoBehaviour
     }
 
   
-    // MUERTE: panel de derrota y recarga de la zona
+    // MUERTE: se muestra el panel de derrota. El jugador elige con los botones:
+    // REINTENTAR (vuelve al checkpoint) o MENU (sale al menu principal).
 
-    private IEnumerator Morir()
+    private void Morir()
     {
         muerto = true;
 
         if (UIManager.Instance != null)
-            UIManager.Instance.MostrarDerrota();
-
-        yield return new WaitForSeconds(esperaAntesDeReiniciar);
-
-        if (GameManager.Instance != null)
-        {
-            // El GameManager carga el ultimo checkpoint (guardado.json) y recarga la zona con vida completa.
-            GameManager.Instance.ReiniciarDesdeCheckpoint();
-        }
+            UIManager.Instance.MostrarDerrota();   // el panel congela el juego y libera el mouse
         else
-        {
-            
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name); // Permite probar la zona directamente sin pasar por el menu.
-        }
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name); // Permite probar la zona directamente sin Canvas.
     }
 }

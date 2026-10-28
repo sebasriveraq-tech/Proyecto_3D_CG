@@ -93,6 +93,17 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene(nombreEscena);
     }
 
+    // VICTORIA: la llama el objeto final de la Zona 3. La partida termina:
+    // se borra el guardado (ya no hay nada que continuar) y se muestra el panel de victoria.
+
+    public void GanarPartida()
+    {
+        SaveManager.BorrarGuardado();
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.MostrarVictoria();
+    }
+
   
     // REINICIO: al morir se recupera el progreso del ultimo checkpoint y se recarga la zona actual.
 
