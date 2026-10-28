@@ -84,26 +84,53 @@ public class GameManager : MonoBehaviour
         return objetivos.ContainsKey(idObjetivo) && objetivos[idObjetivo];
     }
 
-    // CAMBIO DE ESCENA: la UNICA forma oficial de pasar de zona.Guarda la partida antes de cambiar.
-    
+    // CAMBIO DE ESCENA: la UNICA forma oficial de pasar de zona. Guarda la partida antes de cambiar.
 
     public void CambiarEscena(string nombreEscena)
     {
         escenaActual = nombreEscena;
-     
+        SaveManager.Guardar();            // checkpoint: se guarda justo antes de salir de la zona
         SceneManager.LoadScene(nombreEscena);
     }
 
+    // VICTORIA: la llama el objeto final de la Zona 3. La partida termina:
+    // se borra el guardado (ya no hay nada que continuar) y se muestra el panel de victoria.
+
+    public void GanarPartida()
+    {
+        SaveManager.BorrarGuardado();
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.MostrarVictoria();
+    }
+
   
-    // REINICIO: volver a la ultima escena guardada tras morir.
+    // REINICIO: al morir se recupera el progreso del ultimo checkpoint y se recarga la zona actual.
 
     public void ReiniciarDesdeCheckpoint()
     {
-
+        SaveManager.Cargar();             // inventario, codigos, puertas y vida vuelven al checkpoint
+        vidaJugador = 100;                // se revive con vida completa
+        escenaActual = SceneManager.GetActiveScene().name; // se recarga la zona donde murio
         SceneManager.LoadScene(escenaActual);
     }
 
-    // NUEVA PARTIDA: limpiar el estado en memoria (el borrado del archivo JSON lo hara el menu con el SaveManager). 
+    // CONTINUAR: el menu lee el JSON y abre la zona donde se quedo el jugador.
+
+    public bool HayPartidaGuardada()
+    {
+        return SaveManager.ExisteGuardado();
+    }
+
+    public void ContinuarPartida()
+    {
+        if (!SaveManager.ExisteGuardado()) return;
+
+        SaveManager.Cargar();             // restaura el estado y la escena guardada
+        SceneManager.LoadScene(escenaActual);
+    }
+
+    // NUEVA PARTIDA: limpiar el estado en memoria y borrar el archivo viejo.
 
     public void NuevaPartida()
     {
@@ -113,5 +140,6 @@ public class GameManager : MonoBehaviour
         puertas.Clear();
         objetivos.Clear();
         tiempoJugadoSegundos = 0f;
+        SaveManager.BorrarGuardado();
     }
 }

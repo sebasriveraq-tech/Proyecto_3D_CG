@@ -73,8 +73,26 @@ public class UIManager : MonoBehaviour
     public void MostrarMenu()       { MostrarSolo(panelMenu); }
     public void MostrarPausa()      { MostrarSolo(panelPausa); }
     public void MostrarInventario() { MostrarSolo(panelInventario); }
-    public void MostrarVictoria()   { MostrarSolo(panelVictoria); }
-    public void MostrarDerrota()    { MostrarSolo(panelDerrota); }
+
+    // Los paneles finales tienen botones: se congela el juego y se libera el mouse para poder pulsarlos.
+    public void MostrarVictoria()
+    {
+        MostrarSolo(panelVictoria);
+        CongelarParaBoton();
+    }
+
+    public void MostrarDerrota()
+    {
+        MostrarSolo(panelDerrota);
+        CongelarParaBoton();
+    }
+
+    private void CongelarParaBoton()
+    {
+        Time.timeScale = 0f;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
 
     // ---------------------------------------------------------------
     // HUD
