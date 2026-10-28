@@ -2,7 +2,7 @@
 
 Esta guía documenta **cómo quedaron armados** el Canvas, el jugador y el recogible, y **qué se corrigió** durante la revisión del 26-oct. Sirve para tres cosas: reconstruir los prefabs si se pierden, entender cada valor para la sustentación y repetir la verificación antes de la entrega.
 
-> Estado: `Canvas_Principal.prefab` importa **sin errores** en Unity 6000.3.14f1, el HUD se ve en Play, el prompt de la credencial aparece automáticamente y las 4 escenas usan las mismas instancias de Canvas y Player. La cadena **Terminal → credencial → Puerta → Z2** ya está probada y documentada en la sección 6.
+> Estado: `Canvas_Principal.prefab` importa **sin errores** en Unity 6000.3.14f1, el HUD se ve en Play, el prompt de la credencial aparece automáticamente y las 4 escenas usan las mismas instancias de Canvas, Player y GameManager. La cadena **Terminal → credencial → Puerta → Z2** está probada (sección 6) y el **guardado/carga en JSON** también (sección 7.1).
 
 ---
 
@@ -10,11 +10,11 @@ Esta guía documenta **cómo quedaron armados** el Canvas, el jugador y el recog
 
 | Elemento transversal | Archivo | Dónde vive | Para qué sirve |
 |----------------------|---------|------------|----------------|
-| Estado global | `GAME/Scripts/Core/GameManager.cs` | 1 objeto en Menu (y `GameManagerProvisional` en Z1 para pruebas) | Vida, inventario, códigos, puertas y objetivos entre escenas |
+| Estado global | `GAME/Scripts/Core/GameManager.cs` | Prefab `Core/GameManager` (1 instancia por escena) | Vida, inventario, códigos, puertas y objetivos entre escenas |
 | Interfaz | `GAME/Scripts/Core/UIManager.cs` | Prefab `Canvas_Principal` | Mostrar paneles, vida, inventario, mensajes y prompt |
 | Jugador | `PlayerController` + `PlayerHealth` + `InteractionController` | Prefab `Player` | Mover, mirar, recibir daño e interactuar igual en Z1, Z2 y Z3 |
 | Objetos interactuables | `Interactable` + `Recogible` + `Terminal` + `Puerta` | Prefabs `Recogible_Credencial`, `Terminal_Registro`, `Puerta_Zona2` | Base común para puertas, terminales, botones y recogibles |
-| Guardado JSON | `SaveManager` (siguiente bloque) | StreamingAssets | Persistencia (itinerario 29-30 oct) |
+| Guardado JSON | `GAME/Scripts/Core/SaveManager.cs` | Clase estática; archivo en `persistentDataPath` | Persistir vida, inventario, códigos, puertas, objetivos y escena |
 
 **Idea central para la sustentación:** el GameManager es el único que **guarda** estado; el UIManager solo **pinta**; el Player y los interactuables son **prefabs reutilizados** en todas las escenas. Nada se duplica ni se vuelve a programar por zona.
 
@@ -32,7 +32,8 @@ Esta guía documenta **cómo quedaron armados** el Canvas, el jugador y el recog
 | `Recogible` | `Scripts/Interactables` | Suma un ítem al GameManager, actualiza el HUD y desaparece | No sirve para puertas ni terminales |
 | `Terminal` | `Scripts/Interactables` | Suma un código al GameManager y lo muestra en el HUD | No abre puertas ni cambia de escena |
 | `Puerta` | `Scripts/Interactables` | Pide un ítem; si lo tiene, sube como compuerta y carga la siguiente zona | No recoge ítems ni da códigos |
-| `ControlPaneles` | `Scripts/Core` | Teclas de los paneles: ENTER (menú → Z1), ESC (pausa) e I (inventario) | No dibuja UI ni mueve al jugador |
+| `ControlPaneles` | `Scripts/Core` | Teclas de los paneles: ENTER (partida nueva), C (continuar), ESC (pausa) e I (inventario) | No dibuja UI ni mueve al jugador |
+| `SaveManager` | `Scripts/Core` | Convierte el GameManager a JSON (`Guardar`), lo lee (`Cargar`) y borra el archivo (`BorrarGuardado`) | No tiene estado propio ni está en la escena: es una clase estática |
 
 **Flujo completo de una interacción (para contarlo de memoria):**
 
@@ -376,14 +377,56 @@ Qué hace, paso a paso:
 
 ---
 
-## 7. GameManager en las escenas
+## 7. GameManager en las escenas (prefab compartido)
 
-- **Menu** tiene el GameManager definitivo; sobrevive con `DontDestroyOnLoad`.
-- **Z1** tiene `GameManagerProvisional` (el que se agregó): un objeto vacío con el script `GameManager`, vida 100 e inventario vacío. **Está correcto** y sirve para probar la zona sin pasar por Menu.
-- Si se entra desde Menu, el `GameManagerProvisional` de Z1 detecta que ya existe `Instance` en `Awake()` y **se destruye solo**. No hay estado duplicado.
-- Z2 y Z3 no lo tienen: si se reproducen directamente, el jugador funciona con vida 100 y el inventario no persiste (el `Recogible` solo suma cuando `GameManager.Instance` existe). Si se necesita probarlas sueltas, se puede agregar un provisional igual.
+Ahora el GameManager sigue la misma regla que el Canvas y el Player: **un prefab, una instancia en cada escena**.
 
-**Regla:** el objeto global se llama GameManager; el de prueba se llama `GameManagerProvisional` para que en la jerarquía se distinga cuál es el definitivo.
+- Prefab: `Assets/GAME/Prefabs/Core/GameManager.prefab` (GameObject vacío + script `GameManager`).
+- **Las 4 escenas** (`Menu`, `Z1`, `Z2`, `Z3`) tienen una instancia del mismo prefab.
+- En `Awake()`, la primera instancia se queda como `Instance` y llama `DontDestroyOnLoad`; las demás detectan que ya existe una y **se destruyen solas**.
+- Por eso, al pasar de Z1 a Z2 el GameManager que sobrevive es el mismo: en la prueba automática se contó **1 solo** GameManager en la escena Z2.
+- Ya no existe `GameManagerProvisional`: ese objeto se reemplazó por la instancia del prefab.
+
+**Ventaja de tenerlo en las 4 escenas:** Iván y Samuel pueden abrir Z2 o Z3 directamente en el editor y el HUD arranca con vida 100, inventario vacío y sin errores de referencia; no necesitan entrar desde el menú.
+
+### 7.1 Guardado y carga (`SaveManager`)
+
+`SaveManager` es una clase **estática** (no es MonoBehaviour, no va en la escena). Recibe el estado del GameManager, lo escribe en un JSON y lo vuelve a leer.
+
+El archivo se guarda en:
+
+```
+Application.persistentDataPath/guardado.json
+```
+
+En Windows, por ejemplo: `C:/Users/User/AppData/LocalLow/DefaultCompany/Proyecto_3D_CG/guardado.json`.
+
+**Por qué `persistentDataPath` y no `StreamingAssets`:** `StreamingAssets` se copia al build pero queda de **solo lectura**; en el editor se puede escribir, pero al compilar el juego `File.WriteAllText` fallaría. `persistentDataPath` es la carpeta del usuario donde sí se puede escribir siempre. El plan inicial decía `StreamingAssets`; el cambio se hizo al probar la escritura real.
+
+**Qué se guarda (clase `DatosGuardado`):**
+
+| Campo | Tipo | Por qué |
+|-------|------|---------|
+| `escenaActual` | `string` | para saber dónde continuar |
+| `vidaJugador` | `int` | el HUD arranca con la vida real |
+| `tiempoJugadoSegundos` | `float` | estadística de la partida |
+| `inventario` | `List<string>` | ítems recogidos |
+| `codigos` | `List<string>` | códigos descubiertos |
+| `puertas` | `List<ParBool>` | qué puertas ya se abrieron |
+| `objetivos` | `List<ParBool>` | qué objetivos están completos |
+
+**Por qué `List<ParBool>` y no `Dictionary`:** `JsonUtility` no serializa `Dictionary`. Al guardar, cada pareja clave/valor del `Dictionary` se copia a un `ParBool`; al cargar, se reconstruye el `Dictionary` con un `foreach`. Eso también cumple el requisito de "reconstruir las estructuras al cargar".
+
+**Cuándo se guarda y cuándo se carga:**
+
+| Momento | Método | Qué hace |
+|---------|--------|----------|
+| Al cambiar de zona (puerta) | `GameManager.CambiarEscena` | `SaveManager.Guardar()` **antes** de `LoadScene` |
+| Al morir | `GameManager.ReiniciarDesdeCheckpoint` | `SaveManager.Cargar()`, vida 100 y recarga la zona donde murió |
+| ENTER en el menú | `ControlPaneles.IniciarPartidaNueva` | `NuevaPartida()` (limpia memoria y borra el JSON) y entra a Z1 |
+| C en el menú | `ControlPaneles.ContinuarPartida` | `ContinuarPartida()`: carga el JSON y abre `escenaActual` |
+
+**El menú ahora tiene dos opciones:** `Presiona ENTER para una partida nueva o C para continuar la guardada.` Si todavía no existe `guardado.json`, la tecla C no hace nada (es la primera partida).
 
 ---
 
@@ -402,6 +445,9 @@ Qué hace, paso a paso:
 | `Terminal_Registro` y `Puerta_Zona2` | Los dos prefabs importan sin errores; las instancias quedaron en Z1 en `(-2.5, 0.7, 3)` y `(2.5, 1.3, 5)` y los componentes se auditaron en el Inspector (código, llave, escena destino y duración) |
 | Cadena Terminal → credencial → puerta | **Verificada con una prueba automática temporal** (`PruebaAuto` + `RuntimeInitializeOnLoadMethod`, borrada al terminar): sin credencial la puerta no se abre; la terminal entrega `codigo_a`; la credencial suma `credencial_z1`; con la credencial la puerta se abre, carga `Zona2_Laboratorio` y el inventario y los códigos sobreviven al cambio |
 | Escena Z2 al entrar desde la puerta | HUD con `- Credencial Z1`, `GameManager` en `DontDestroyOnLoad`, sin excepciones. Sale el aviso de **2 AudioListeners** porque la Z2 tiene su `Main Camera` activa (ver error 15) |
+| Guardado y carga JSON (ida y vuelta) | Prueba temporal (borrada al terminar): con vida 70, `credencial_z1`, `codigo_a`, `puerta_z2` y `tutorial_z1` se llamó `Guardar()`; se limpió la memoria a mano y `Cargar()` devolvió **todo** igual. El JSON quedó legible (indentado) y `BorrarGuardado()` eliminó el archivo |
+| Cambio de escena Z1 → Z2 (checkpoint) | El script llamó `CambiarEscena("Zona2_Laboratorio")`: el JSON quedó con `escenaActual: Zona2_Laboratorio`, en Z2 apareció **1 solo** GameManager, `textoVida = "VIDA: 70 / 100"`, `textoInventario = "INVENTARIO / - Credencial z1"` y `textoCodigosPanel = "CÓDIGOS / - CÓDIGO A"` |
+| GameManager como prefab en las 4 escenas | Cada escena tiene una instancia de `Prefabs/Core/GameManager.prefab`; en Play desde Z2 y al volver a `Menu` se contó **1** GameManager y el panel del menú quedó visible con el HUD oculto |
 | Sección `CÓDIGOS` del panel de inventario | Verificada en Play con un script temporal (borrado al terminar): el panel muestra `INVENTARIO / - Credencial z1` arriba y `CÓDIGOS / - CÓDIGO A` en turquesa abajo, sin solaparse con el pie |
 | Estado real del HUD en Play | Prueba temporal (borrada) que lee los valores: `panelHUD` activo, `textoVida = "VIDA: 100 / 100"`, `barraVida.fillAmount = 1`, `textoInventario = "INVENTARIO / Sin objetos"`, `textoCodigosPanel = "CÓDIGOS / Sin códigos"`. El HUD no estaba roto: se veía recortado por el **zoom del Game view** (ver error 16) |
 | Terminal desde la posición real del jugador | El jugador se colocó en `(-2.5, 0, 1)` mirando en +Z (a 1.5 m de la terminal): el `SphereCast` devuelve `Terminal_Registro a 1.54 m`, el prompt pasa a `Presiona E para usar la terminal`, `Interactuar()` entrega `codigo_a` y en pantalla sale `Código obtenido: A-4721` |
@@ -432,6 +478,10 @@ Qué hace, paso a paso:
 | 14 | `LoadScene` fallaría en el build | Solo Z1 estaba en `Build Settings` | Se agregaron las 4 escenas, con `Menu` en índice 0 |
 | 15 | Aviso "There are 2 audio listeners in the scene" al entrar a Z2 | La Z2 tiene su `Main Camera` activa con `AudioListener` y el Player trae otro | **Pendiente de Z2 (Iván):** desactivar el `AudioListener` de la `Main Camera` de Z2, como ya está en Z1. No rompe la lógica; es un aviso de audio |
 | 16 | "El HUD no aparece" en Play mode | El **zoom del Game view** estaba en `1.5x`: el canvas se dibuja más grande que el área visible y se recortan los bordes, donde viven la barra, `VIDA` y el inventario. El prompt del centro seguía viéndose | Bajar el `Scale` del Game view (barra del encabezado) o maximizar con **Shift + Espacio**. Los valores leídos por script confirmaron que el HUD nunca dejó de estar activo |
+| 17 | Z2 y Z3 abrían sin GameManager y el HUD arrancaba sin estado | Solo Menu y Z1 tenían el objeto; Z2/Z3 no | Se creó `Prefabs/Core/GameManager.prefab` y se puso una instancia en las 4 escenas. Se eliminó `GameManagerProvisional` |
+| 18 | El guardado fallaría en el build | El plan decía guardar en `StreamingAssets`, que en un build es de solo lectura | El JSON vive en `Application.persistentDataPath` (carpeta escribible del usuario) |
+| 19 | `JsonUtility` no guardaba las puertas ni los objetivos | `Dictionary` no es serializable por `JsonUtility` | Se convierte a `List<ParBool>` al guardar y se reconstruye el `Dictionary` al cargar |
+| 20 | Aviso "scene modified externally" al editar los `.unity` con Unity abierto | Los cambios se hicieron desde el editor de texto | En el diálogo se elige **Reload**; la escena conserva los valores del archivo |
 
 ---
 
@@ -440,11 +490,15 @@ Qué hace, paso a paso:
 - [ ] TMP Essentials importado (existe `Assets/TextMesh Pro` y los textos tienen fuente).
 - [ ] Las 4 escenas tienen una **instancia del mismo** `Canvas_Principal` (no Canvas nuevos).
 - [ ] Z1, Z2 y Z3 tienen una **instancia del mismo** `Player.prefab`.
+- [ ] Las 4 escenas tienen una **instancia del mismo** `GameManager.prefab` (`Prefabs/Core`).
 - [ ] El HUD muestra `VIDA: 100 / 100` y la barra llena al iniciar.
 - [ ] Tecla **K** (temporal) baja 10 de vida y actualiza barra y texto; el **cooldown de 1 s** impide bajar más de un golpe por segundo.
 - [ ] Al llegar a 0 aparece **TE NEUTRALIZARON** y a los 2 s se recarga la zona con vida completa.
 - [ ] Mirar la credencial muestra el prompt con fondo; **E** la recoge, actualiza el inventario y desaparece.
-- [ ] En `Menu`, **ENTER** carga `Zona1_Recepcion` (y el HUD arranca con la vida y el inventario guardados).
+- [ ] En `Menu`, **ENTER** empieza una partida nueva y carga `Zona1_Recepcion` con vida 100 e inventario vacío.
+- [ ] Después de cruzar la puerta a Z2, existe `guardado.json` en `C:/Users/<usuario>/AppData/LocalLow/DefaultCompany/Proyecto_3D_CG` y contiene `"escenaActual": "Zona2_Laboratorio"`.
+- [ ] Al volver al `Menu` con una partida guardada, **C** abre la última zona y el HUD conserva el inventario y los códigos.
+- [ ] Al morir, la zona se recarga con vida completa y el progreso del último checkpoint (inventario, códigos, puertas).
 - [ ] En zona, **ESC** abre `PAUSA` y congela al jugador; **ESC** otra vez devuelve el HUD y bloquea el mouse.
 - [ ] En zona, **I** abre el `INVENTARIO` con la lista; **I** otra vez vuelve al HUD.
 - [ ] En Z1 no se ve el menú: solo el HUD (el override de `Panel_Menu` está en `0`).
@@ -476,7 +530,7 @@ Para que el agente no quite vida en cada frame. Se compara `Time.time` con el mo
 Porque para un FPS simple da movimiento directo, gravedad y colisiones sin configurar física; además se explica en una sola clase.
 
 **¿Dónde se usa el New Input System?**
-En `Keyboard.current` y `Mouse.current` de `PlayerController`, `InteractionController` y la tecla de prueba de `PlayerHealth`. No se usa `Input.GetAxis` en ningún script.
+En `Keyboard.current` y `Mouse.current` de `PlayerController`, `InteractionController`, `PlayerHealth` (tecla K de prueba) y `ControlPaneles` (ENTER, C, ESC e I). No se usa `Input.GetAxis` en ningún script.
 
 **¿Por qué `Interactable` es abstracta?**
 Porque define el contrato (`Interactuar()`) y obliga a que cada objeto concreto escriba su comportamiento: recoger, abrir, activar, etc. El `InteractionController` solo conoce la base.
@@ -512,7 +566,25 @@ Porque `AgregarItem` y `AgregarCodigo` comprueban `Contains` antes de agregar. S
 Porque el GameManager guarda el **ID del contrato** (`codigo_a`), que es lo que Z3 consulta con `TieneCodigo`. El texto legible (`A-4721`) se muestra en el mensaje de la terminal, y como la terminal no se destruye, se puede volver a usar para releerlo. Si más adelante Z3 pide teclear el código, se guardará también el texto visible.
 
 **¿Dónde está el guardado JSON?**
-En el siguiente bloque del itinerario (29-30 oct): `DatosGuardado` + `SaveManager` en `StreamingAssets`, con `List`/`Dictionary` reconstruidos al cargar.
+En `Application.persistentDataPath/guardado.json` (en Windows: `C:/Users/<usuario>/AppData/LocalLow/DefaultCompany/Proyecto_3D_CG/guardado.json`). Se escribe con `JsonUtility.ToJson(DatosGuardado, true)` y se lee con `JsonUtility.FromJson<DatosGuardado>`.
+
+**¿Por qué no se guarda en `StreamingAssets` como decía el plan?**
+Porque `StreamingAssets` queda de solo lectura al compilar el juego: `File.WriteAllText` funcionaría en el editor y fallaría en el `.exe`. `persistentDataPath` es la carpeta del usuario donde la aplicación siempre puede escribir. Se corrigió al hacer la primera prueba real de escritura.
+
+**¿Por qué `SaveManager` no es un MonoBehaviour / Singleton?**
+Porque no tiene estado ni necesita estar en la escena: solo transforma datos. Al ser `static`, cualquier script lo llama con `SaveManager.Guardar()` sin arrastrar referencias en el Inspector. El que sí tiene estado y sobrevive es el GameManager.
+
+**¿Por qué `JsonUtility` y no otro serializador?**
+Porque viene con Unity, no requiere paquetes y es suficiente para listas de `string`, enteros y pares clave/valor. La única limitación es que no serializa `Dictionary`, y se resuelve con `List<ParBool>`.
+
+**¿Cuándo se guarda la partida?**
+En el **checkpoint**: justo antes de cambiar de zona (`CambiarEscena`) y al empezar una partida nueva. No se guarda cada frame ni la posición de los agentes: el JSON se escribe pocas veces y la partida se puede recuperar sin congelar el juego.
+
+**¿Qué pasa exactamente cuando el jugador muere?**
+`PlayerHealth` muestra `TE NEUTRALIZARON`, espera 2 s y llama `ReiniciarDesdeCheckpoint()`: `SaveManager.Cargar()` devuelve el progreso del último guardado, la vida vuelve a 100 y se recarga la zona donde murió. Lo que se hubiera recogido **después** del checkpoint se pierde, que es la definición de checkpoint.
+
+**¿Cómo se reconstruyen las estructuras al cargar?**
+`DatosGuardado` trae `List<string>` y `List<ParBool>`; al cargar, las listas se asignan al GameManager y cada `ParBool` se vuelve a meter en el `Dictionary` con `puertas[clave] = valor`. Así el JSON guarda contenido plano y el juego recupera sus `Dictionary`.
 
 ---
 
@@ -520,6 +592,6 @@ En el siguiente bloque del itinerario (29-30 oct): `DatosGuardado` + `SaveManage
 
 | Fecha | Tarea |
 |-------|-------|
-| 27-28 oct | **Hecho:** ESC (pausa), I (inventario), ENTER (menú → Z1), las 4 escenas en Build Settings, `Terminal` + `Puerta` en Z1 con cambio a Z2 (verificado con prueba automática) y sección `CÓDIGOS` en el panel de inventario. **Falta:** victoria/derrota con botones, `AgentController` base + NavMesh, AudioManager |
-| 29-30 oct | `SaveManager`/`DatosGuardado` JSON en StreamingAssets; FSM del agente; flujo Menu → nueva partida / continuar |
-| 2 nov | Checkpoints, reinicio desde JSON y **HITO: núcleo transversal funcional** |
+| 27-28 oct | **Hecho:** ESC (pausa), I (inventario), las 4 escenas en Build Settings, `Terminal` + `Puerta` en Z1 con cambio a Z2, sección `CÓDIGOS` del inventario y `GameManager` como prefab en las 4 escenas. **Falta:** victoria/derrota con botones, `AgentController` base + NavMesh, AudioManager |
+| 29-30 oct | **Hecho:** `SaveManager`/`DatosGuardado` con JSON en `persistentDataPath`, guardado al cambiar de escena, carga al morir (checkpoint), ENTER = partida nueva y C = continuar (verificado con prueba automática). **Falta:** FSM del agente |
+| 2 nov | Victoria/derrota con botones (reintentar / menú) y **HITO: núcleo transversal funcional** |

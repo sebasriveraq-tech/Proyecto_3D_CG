@@ -10,10 +10,17 @@ public class ControlPaneles : MonoBehaviour
         // Sin teclado o sin Canvas no hay nada que hacer.
         if (Keyboard.current == null || UIManager.Instance == null) return;
 
-        // ENTER: solo funciona en el menu (cuando el Panel_Menu esta visible). Carga la Zona 1.
+        // ENTER: solo funciona en el menu (cuando el Panel_Menu esta visible). Empieza una partida nueva.
         if (Keyboard.current.enterKey.wasPressedThisFrame && UIManager.Instance.panelMenu.activeSelf)
         {
-            SceneManager.LoadScene("Zona1_Recepcion");
+            IniciarPartidaNueva();
+            return;
+        }
+
+        // C: en el menu continúa desde el ultimo guardado (si existe).
+        if (Keyboard.current.cKey.wasPressedThisFrame && UIManager.Instance.panelMenu.activeSelf)
+        {
+            ContinuarPartida();
             return;
         }
 
@@ -35,6 +42,27 @@ public class ControlPaneles : MonoBehaviour
             else if (UIManager.Instance.panelHUD.activeSelf)
                 UIManager.Instance.MostrarInventario();
         }
+    }
+
+    private void IniciarPartidaNueva()
+    {
+        // Sin GameManager (por ejemplo si se abre la Zona 1 directo) solo se carga la escena.
+        if (GameManager.Instance == null)
+        {
+            SceneManager.LoadScene("Zona1_Recepcion");
+            return;
+        }
+
+        GameManager.Instance.NuevaPartida();                   // limpia el estado y borra el JSON viejo
+        GameManager.Instance.CambiarEscena("Zona1_Recepcion"); // guarda el checkpoint inicial y entra a Z1
+    }
+
+    private void ContinuarPartida()
+    {
+        // Si no hay archivo no se hace nada: en la primera partida todavia no existe.
+        if (GameManager.Instance == null || !GameManager.Instance.HayPartidaGuardada()) return;
+
+        GameManager.Instance.ContinuarPartida();
     }
 
     private void Pausar()

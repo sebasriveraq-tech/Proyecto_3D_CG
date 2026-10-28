@@ -83,8 +83,7 @@ public class PlayerHealth : MonoBehaviour
 
         if (GameManager.Instance != null)
         {
-            // Checkpoint provisional: se revive con vida completa.Cuando exista el SaveManager, aqui se cargara el JSON.
-            GameManager.Instance.vidaJugador = vidaMaxima;
+            // El GameManager carga el ultimo checkpoint (guardado.json) y recarga la zona con vida completa.
             GameManager.Instance.ReiniciarDesdeCheckpoint();
         }
         else
