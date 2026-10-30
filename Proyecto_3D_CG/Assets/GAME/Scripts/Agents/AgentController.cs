@@ -202,7 +202,7 @@ public class AgentController : MonoBehaviour
         {
             proximoDano = Time.time + cooldownDano;
             saludJugador.RecibirDano(dano);
-            LabAudioFeedback.ReproducirTono(transform.position, 180f, 0.16f, 0.45f);
+            LabAudioFeedback.ReproducirAtaqueAgente(transform.position);
             StartCoroutine(PulsoAtaque());
         }
     }
@@ -271,10 +271,8 @@ public class AgentController : MonoBehaviour
         EstadoActual = nuevoEstado;
         proximaActualizacionRuta = 0f;
         patrullaEsperando = false;
-        if (nuevoEstado == AgentState.Persecucion)
-            LabAudioFeedback.ReproducirTono(transform.position, 520f, 0.18f, 0.35f);
-        else if (nuevoEstado == AgentState.AlertaInvestigacion)
-            LabAudioFeedback.ReproducirTono(transform.position, 360f, 0.24f, 0.35f);
+        if (nuevoEstado == AgentState.Persecucion || nuevoEstado == AgentState.AlertaInvestigacion)
+            LabAudioFeedback.ReproducirAlertaAgente(transform.position);
         else if (nuevoEstado == AgentState.Retorno)
             LabAudioFeedback.ReproducirTono(transform.position, 270f, 0.16f, 0.25f);
 

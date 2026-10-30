@@ -16,7 +16,7 @@ public abstract class Interactable : MonoBehaviour
             fuente.Play();
             return;
         }
-        LabAudioFeedback.ReproducirInteraccion(transform.position);
+        LabAudioFeedback.ReproducirInteraccion(transform.position, gameObject.name);
     }
 
     // Cada objeto dice que pasa cuando el jugador presiona E.
