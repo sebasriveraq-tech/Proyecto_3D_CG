@@ -6,8 +6,8 @@ public class InterruptorInteractuable : Interactable
 {
     [Header("Estado")]
     public bool encendido;
-    public UnityEvent alEncender;
-    public UnityEvent alApagar;
+    public UnityEvent alEncender = new UnityEvent();
+    public UnityEvent alApagar = new UnityEvent();
     public AudioSource audioSource;
     public Transform palanca;
     public Renderer indicador;
@@ -19,7 +19,7 @@ public class InterruptorInteractuable : Interactable
     public override void Interactuar()
     {
         encendido = !encendido;
-        if (audioSource != null) audioSource.Play();
+        ReproducirSonidoInteraccion(audioSource);
         if (encendido) alEncender?.Invoke();
         else alApagar?.Invoke();
         ActualizarVisual();

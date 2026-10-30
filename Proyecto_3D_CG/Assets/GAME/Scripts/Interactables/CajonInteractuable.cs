@@ -23,7 +23,7 @@ public class CajonInteractuable : Interactable
     {
         if (moviendo || frente == null) return;
         abierto = !abierto;
-        if (audioSource != null) audioSource.Play();
+        ReproducirSonidoInteraccion(audioSource);
         if (animacion != null) StopCoroutine(animacion);
         animacion = StartCoroutine(Animar());
     }

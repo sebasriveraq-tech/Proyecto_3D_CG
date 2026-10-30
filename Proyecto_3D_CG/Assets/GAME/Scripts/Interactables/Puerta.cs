@@ -7,6 +7,7 @@ public class Puerta : Interactable
     [Header("Condicion")]
     public string idLlave = "credencial_z1";   // item que debe tener el jugador
     public string idPuerta = "puerta_z2";      // id que queda guardado en el GameManager
+    public string idCodigoRequerido;
 
     [Header("Destino")]
     public string escenaDestino = "Zona2_Laboratorio";
@@ -22,10 +23,21 @@ public class Puerta : Interactable
         if (!GameManager.Instance.TieneItem(idLlave))
         {
             if (UIManager.Instance != null)
-                UIManager.Instance.MostrarMensaje("Necesitas la credencial Z1");
+                UIManager.Instance.MostrarMensaje("Necesitas: " + idLlave.Replace("_", " "));
+            ReproducirSonidoInteraccion();
             return;
         }
 
+        if (!string.IsNullOrEmpty(idCodigoRequerido) &&
+            !GameManager.Instance.TieneCodigo(idCodigoRequerido))
+        {
+            if (UIManager.Instance != null)
+                UIManager.Instance.MostrarMensaje("Consulta la terminal para obtener el código de acceso");
+            ReproducirSonidoInteraccion();
+            return;
+        }
+
+        ReproducirSonidoInteraccion();
         abierta = true;
         GameManager.Instance.AbrirPuerta(idPuerta);
 

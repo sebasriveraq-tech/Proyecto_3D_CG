@@ -5,7 +5,7 @@ using UnityEngine.Events;
 public class BotonInteractuable : Interactable
 {
     [Header("Acción")]
-    public UnityEvent alPresionar;
+    public UnityEvent alPresionar = new UnityEvent();
     public bool soloUnaVez;
     public AudioSource audioSource;
     public Renderer indicador;
@@ -23,7 +23,7 @@ public class BotonInteractuable : Interactable
     {
         if (soloUnaVez && activado) return;
         activado = true;
-        if (audioSource != null) audioSource.Play();
+        ReproducirSonidoInteraccion(audioSource);
         if (alPresionar != null) alPresionar.Invoke();
         ActualizarIndicador();
         if (UIManager.Instance != null)

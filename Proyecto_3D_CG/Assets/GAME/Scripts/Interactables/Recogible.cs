@@ -11,6 +11,7 @@ public class Recogible : Interactable
 
     public override void Interactuar()
     {
+        ReproducirSonidoInteraccion();
         
         if (GameManager.Instance != null) // 1. Guardar el item en el estado global.
         {
