@@ -6,8 +6,17 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/GAME/Scenes/Menu.unity
+    guid: 1e540108d2c4d894189ab6a3ca8be0e8
+  - enabled: 1
     path: Assets/GAME/Scenes/Zona1_Recepcion.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 1
+    path: Assets/GAME/Scenes/Zona2_Laboratorio.unity
+    guid: dc821f09071239a44b2543f9f2384d65
+  - enabled: 1
+    path: Assets/GAME/Scenes/Zona3_Control.unity
+    guid: 2a0e1c5532ba71e4cba76b49e0c52442
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

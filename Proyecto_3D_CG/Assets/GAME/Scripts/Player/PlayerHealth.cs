@@ -1,0 +1,70 @@
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+
+/// PlayerHealth: vida del jugador con daño por cooldown. 
+
+public class PlayerHealth : MonoBehaviour
+{
+    [Header("Vida")]
+    public int vidaMaxima = 100;
+    public int vidaActual = 100;
+
+    [Header("Dano")]
+    public float cooldownDano = 1f;           // segundos entre golpes
+
+    private float proximoDanoPermitido = 0f;  // momento (Time.time) en que se puede volver a recibir dano
+    private bool muerto = false;
+
+    private void Start()
+    {
+        
+        if (GameManager.Instance != null)
+            vidaActual = GameManager.Instance.vidaJugador; // Si venimos de otra zona, el GameManager tiene la vida real.
+
+        ActualizarHUD();
+    }
+
+    // RECIBIR DAÑO (con cooldown): lo llama el AgentController cuando alcanza al jugador.
+
+    public void RecibirDano(int cantidad)
+    {
+        if (muerto) return;
+
+        
+        if (Time.time < proximoDanoPermitido) return; // Si todavia no paso el cooldown, el golpe se ignora.
+
+        proximoDanoPermitido = Time.time + cooldownDano;
+
+        vidaActual -= cantidad;
+        if (vidaActual < 0) vidaActual = 0;
+
+       
+        if (GameManager.Instance != null)
+            GameManager.Instance.vidaJugador = vidaActual; // Guardar la vida en el estado global.
+
+        ActualizarHUD();
+
+        if (vidaActual == 0) Morir();
+    }
+
+    private void ActualizarHUD()
+    {
+        if (UIManager.Instance != null)
+            UIManager.Instance.ActualizarVida(vidaActual, vidaMaxima);
+    }
+
+  
+    // MUERTE: se muestra el panel de derrota. El jugador elige con los botones:
+    // REINTENTAR (vuelve al checkpoint) o MENU (sale al menu principal).
+
+    private void Morir()
+    {
+        muerto = true;
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.MostrarDerrota();   // el panel congela el juego y libera el mouse
+        else
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name); // Permite probar la zona directamente sin Canvas.
+    }
+}

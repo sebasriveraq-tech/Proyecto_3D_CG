@@ -232,7 +232,7 @@ Crear estas carpetas **desde el Unity Editor** (clic derecho en `Assets > Create
 
 ```
 Assets/
-  _Game/
+  GAME/
     Scripts/
       Core/         (GameManager, SaveManager, AudioManager, UIManager)
       Player/       (PlayerController, PlayerHealth, InteractionController)
