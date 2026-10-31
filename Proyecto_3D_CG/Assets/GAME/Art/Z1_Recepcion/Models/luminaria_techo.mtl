@@ -1,0 +1,14 @@
+newmtl lamp
+Kd 1.0000 0.9137 0.5882
+Ka 0 0 0
+Ks 0 0 0
+d 1
+illum 1
+
+newmtl metal
+Kd 0.7406 0.8229 0.8396
+Ka 0 0 0
+Ks 0 0 0
+d 1
+illum 1
+

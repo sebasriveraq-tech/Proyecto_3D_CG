@@ -1,0 +1,14 @@
+newmtl wood
+Kd 0.8962 0.6016 0.3932
+Ka 0 0 0
+Ks 0 0 0
+d 1
+illum 1
+
+newmtl metal
+Kd 0.7406 0.8229 0.8396
+Ka 0 0 0
+Ks 0 0 0
+d 1
+illum 1
+

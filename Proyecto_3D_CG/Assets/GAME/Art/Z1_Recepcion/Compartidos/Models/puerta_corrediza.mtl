@@ -1,0 +1,8 @@
+newmtl colormap
+Kd 0.8000 0.8000 0.8000
+Ka 0 0 0
+Ks 0 0 0
+d 1
+illum 1
+map_Kd puerta_corrediza_atlas.png
+

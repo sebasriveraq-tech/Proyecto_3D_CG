@@ -1,0 +1,14 @@
+newmtl metalDark
+Kd 0.3059 0.3882 0.3882
+Ka 0 0 0
+Ks 0 0 0
+d 1
+illum 1
+
+newmtl metal
+Kd 0.7406 0.8229 0.8396
+Ka 0 0 0
+Ks 0 0 0
+d 1
+illum 1
+

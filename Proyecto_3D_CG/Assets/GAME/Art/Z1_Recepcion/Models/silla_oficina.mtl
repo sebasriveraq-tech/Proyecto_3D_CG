@@ -1,0 +1,14 @@
+newmtl metalMedium
+Kd 0.3686 0.4667 0.4667
+Ka 0 0 0
+Ks 0 0 0
+d 1
+illum 1
+
+newmtl carpet
+Kd 0.9434 0.3672 0.3426
+Ka 0 0 0
+Ks 0 0 0
+d 1
+illum 1
+
