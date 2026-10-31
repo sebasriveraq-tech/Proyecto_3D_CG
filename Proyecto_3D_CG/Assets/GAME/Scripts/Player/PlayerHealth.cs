@@ -36,6 +36,9 @@ public class PlayerHealth : MonoBehaviour
 
         proximoDanoPermitido = Time.time + cooldownDano;
 
+        if (SceneManager.GetActiveScene().name == "Zona2_Laboratorio")
+            LabAudioFeedback.ReproducirDanioJugador(transform.position);
+
         vidaActual -= cantidad;
         if (vidaActual < 0) vidaActual = 0;
 
