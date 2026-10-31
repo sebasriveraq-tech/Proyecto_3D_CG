@@ -30,7 +30,7 @@ public class UIManager : MonoBehaviour
     public TextMeshProUGUI textoCodigosPanel;
 
     [Header("Colores de la barra de vida")]
-    public Color colorVidaAlta = new Color(0.239f, 0.863f, 0.518f);   // verde
+    public Color colorVidaAlta = new Color(0.208f, 0.769f, 0.745f);   // cian tecnologico
     public Color colorVidaMedia = new Color(1f, 0.780f, 0.250f);      // amarillo
     public Color colorVidaBaja = new Color(1f, 0.361f, 0.361f);       // rojo
 
@@ -101,21 +101,27 @@ public class UIManager : MonoBehaviour
     {
         if (vidaMaxima <= 0) return;
 
-        float proporcion = (float)vidaActual / vidaMaxima;
+        vidaActual = Mathf.Clamp(vidaActual, 0, vidaMaxima);
+        float proporcion = Mathf.Clamp01((float)vidaActual / vidaMaxima);
+        Color colorActual;
+
+        if (proporcion > 0.5f)
+            colorActual = Color.Lerp(colorVidaMedia, colorVidaAlta, (proporcion - 0.5f) * 2f);
+        else
+            colorActual = Color.Lerp(colorVidaBaja, colorVidaMedia, proporcion * 2f);
 
         if (barraVida != null)
         {
             barraVida.fillAmount = proporcion;
-
-            // Verde con vida alta, amarillo a la mitad, rojo al final.
-            if (proporcion > 0.5f)
-                barraVida.color = Color.Lerp(colorVidaMedia, colorVidaAlta, (proporcion - 0.5f) * 2f);
-            else
-                barraVida.color = Color.Lerp(colorVidaBaja, colorVidaMedia, proporcion * 2f);
+            barraVida.color = colorActual;
         }
 
         if (textoVida != null)
-            textoVida.text = "VIDA: " + vidaActual + " / " + vidaMaxima;
+        {
+            string colorHex = ColorUtility.ToHtmlStringRGB(colorActual);
+            textoVida.text = "INTEGRIDAD  <color=#" + colorHex + "><b>" + vidaActual +
+                "</b></color><color=#A7BCC8> / " + vidaMaxima + "</color>";
+        }
     }
 
     public void ActualizarInventario(List<string> items)
