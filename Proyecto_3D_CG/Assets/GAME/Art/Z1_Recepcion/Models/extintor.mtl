@@ -1,0 +1,16 @@
+newmtl korean_fire_extinguisher_01_body
+Kd 0.8000 0.8000 0.8000
+Ka 0 0 0
+Ks 0 0 0
+d 1
+illum 1
+map_Kd extintor_atlas.jpg
+
+newmtl korean_fire_extinguisher_01_paper
+Kd 0.8000 0.8000 0.8000
+Ka 0 0 0
+Ks 0 0 0
+d 1
+illum 1
+map_Kd extintor_1_atlas.jpg
+
