@@ -19,6 +19,7 @@ public class LaboratorioController : MonoBehaviour
 
     private void Awake()
     {
+        GarantizarAudioListenerUnico();
         if (interruptorEnergia == null)
             interruptorEnergia = FindFirstObjectByType<InterruptorInteractuable>();
         if (botonAlarma == null)
@@ -46,9 +47,40 @@ public class LaboratorioController : MonoBehaviour
         audioAmbiente.loop = true;
         audioAmbiente.playOnAwake = false;
         audioAmbiente.spatialBlend = 0f;
-        audioAmbiente.volume = 0.3f;
+        audioAmbiente.volume = 0.2f;
     }
 
+    private void GarantizarAudioListenerUnico()
+    {
+        AudioListener[] listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
+        GameObject jugador = GameObject.Find("Player");
+        AudioListener listenerJugador = jugador != null
+            ? jugador.GetComponentInChildren<AudioListener>(true)
+            : null;
+
+        if (listenerJugador == null || !listenerJugador.isActiveAndEnabled)
+        {
+            listenerJugador = null;
+            foreach (AudioListener listener in listeners)
+            {
+                if (listener != null && listener.isActiveAndEnabled)
+                {
+                    listenerJugador = listener;
+                    break;
+                }
+            }
+        }
+
+        foreach (AudioListener listener in listeners)
+        {
+            if (listener == null || !listener.isActiveAndEnabled || listener == listenerJugador)
+                continue;
+
+            listener.enabled = false;
+            Debug.Log("Zona 2: AudioListener duplicado desactivado en " + listener.gameObject.name +
+                      "; se conserva " + (listenerJugador != null ? listenerJugador.gameObject.name : "ninguno") + ".");
+        }
+    }
     private void Start()
     {
         EnergiaRestaurada = interruptorEnergia != null && interruptorEnergia.encendido;
@@ -86,6 +118,7 @@ public class LaboratorioController : MonoBehaviour
         EnergiaRestaurada = true;
         ActualizarIluminacion();
         if (chispasEnergia != null) chispasEnergia.Play();
+        if (chispasEnergia != null) LabAudioFeedback.ReproducirDescarga(chispasEnergia.transform.position);
         if (GameManager.Instance != null)
             GameManager.Instance.CompletarObjetivo("energia_z2");
         if (UIManager.Instance != null)

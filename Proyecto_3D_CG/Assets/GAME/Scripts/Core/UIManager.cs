@@ -34,7 +34,20 @@ public class UIManager : MonoBehaviour
     public Color colorVidaMedia = new Color(1f, 0.780f, 0.250f);      // amarillo
     public Color colorVidaBaja = new Color(1f, 0.361f, 0.361f);       // rojo
 
+    [Header("Health feedback")]
+    [SerializeField] private float duracionTransicionVida = 0.28f;
+    [SerializeField] private float duracionPulsoDanio = 0.2f;
+    [SerializeField] private float intensidadPulsoDanio = 0.07f;
+    [SerializeField] private float umbralVidaCritica = 0.2f;
+
     private Coroutine rutinaMensaje;
+    private Coroutine rutinaTransicionVida;
+    private Coroutine rutinaPulsoDanio;
+    private bool vidaInicializada;
+    private int vidaAnterior;
+    private float proporcionVida = 1f;
+    private Vector3 escalaBaseBarra = Vector3.one;
+    private Vector3 escalaBaseTexto = Vector3.one;
 
     private void Awake()
     {
@@ -44,6 +57,30 @@ public class UIManager : MonoBehaviour
         // Los fondos nacen ocultos: solo aparecen cuando hay texto.
         if (fondoMensaje != null) fondoMensaje.SetActive(false);
         if (fondoPrompt != null) fondoPrompt.SetActive(false);
+        if (barraVida != null) escalaBaseBarra = barraVida.rectTransform.localScale;
+        if (textoVida != null) escalaBaseTexto = textoVida.rectTransform.localScale;
+    }
+
+    private void LateUpdate()
+    {
+        bool estadoCritico = proporcionVida <= umbralVidaCritica;
+        float pulso = estadoCritico
+            ? 0.86f + 0.14f * (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 6f))
+            : 1f;
+
+        if (barraVida != null)
+        {
+            Color colorBarra = barraVida.color;
+            colorBarra.a = pulso;
+            barraVida.color = colorBarra;
+        }
+
+        if (textoVida != null)
+        {
+            Color colorTexto = textoVida.color;
+            colorTexto.a = pulso;
+            textoVida.color = colorTexto;
+        }
     }
 
     private void Start()
@@ -103,27 +140,113 @@ public class UIManager : MonoBehaviour
 
         vidaActual = Mathf.Clamp(vidaActual, 0, vidaMaxima);
         float proporcion = Mathf.Clamp01((float)vidaActual / vidaMaxima);
-        Color colorActual;
+        bool primeraLectura = !vidaInicializada;
+        bool recibioDanio = vidaInicializada && vidaActual < vidaAnterior;
+        float fillInicial = barraVida != null ? barraVida.fillAmount : proporcion;
+        Color colorInicial = barraVida != null ? barraVida.color : colorVidaAlta;
+        Color colorObjetivo;
 
-        if (proporcion > 0.5f)
-            colorActual = Color.Lerp(colorVidaMedia, colorVidaAlta, (proporcion - 0.5f) * 2f);
+        if (proporcion <= umbralVidaCritica)
+            colorObjetivo = colorVidaBaja;
+        else if (proporcion > 0.5f)
+            colorObjetivo = Color.Lerp(colorVidaMedia, colorVidaAlta, (proporcion - 0.5f) * 2f);
         else
-            colorActual = Color.Lerp(colorVidaBaja, colorVidaMedia, proporcion * 2f);
+            colorObjetivo = Color.Lerp(colorVidaBaja, colorVidaMedia, proporcion * 2f);
+
+        vidaAnterior = vidaActual;
+        vidaInicializada = true;
+        proporcionVida = proporcion;
 
         if (barraVida != null)
         {
-            barraVida.fillAmount = proporcion;
-            barraVida.color = colorActual;
+            if (rutinaTransicionVida != null) StopCoroutine(rutinaTransicionVida);
+
+            if (primeraLectura)
+            {
+                barraVida.fillAmount = proporcion;
+                barraVida.color = colorObjetivo;
+            }
+            else
+            {
+                rutinaTransicionVida = StartCoroutine(
+                    TransicionarVida(fillInicial, proporcion, colorInicial, colorObjetivo, recibioDanio));
+            }
         }
+
+        if (recibioDanio) ReproducirPulsoDanio();
 
         if (textoVida != null)
         {
-            string colorHex = ColorUtility.ToHtmlStringRGB(colorActual);
-            textoVida.text = "INTEGRIDAD  <color=#" + colorHex + "><b>" + vidaActual +
+            string colorHex = ColorUtility.ToHtmlStringRGB(colorObjetivo);
+            string etiqueta = proporcion <= umbralVidaCritica
+                ? "<color=#F26B70><b>ALERTA</b></color>  INTEGRIDAD  "
+                : "INTEGRIDAD  ";
+            textoVida.text = etiqueta + "<color=#" + colorHex + "><b>" + vidaActual +
                 "</b></color><color=#A7BCC8> / " + vidaMaxima + "</color>";
         }
     }
 
+    private IEnumerator TransicionarVida(float fillInicial, float fillObjetivo,
+        Color colorInicial, Color colorObjetivo, bool recibioDanio)
+    {
+        float duracion = Mathf.Max(0.01f, duracionTransicionVida);
+        float tiempo = 0f;
+        const float duracionDestello = 0.07f;
+
+        while (tiempo < duracion)
+        {
+            float t = Mathf.Clamp01(tiempo / duracion);
+            float suave = t * t * (3f - 2f * t);
+
+            if (barraVida != null)
+            {
+                barraVida.fillAmount = Mathf.Lerp(fillInicial, fillObjetivo, suave);
+                Color color = Color.Lerp(colorInicial, colorObjetivo, suave);
+                if (recibioDanio && tiempo < duracionDestello)
+                    color = Color.Lerp(color, Color.white, 1f - tiempo / duracionDestello);
+                barraVida.color = color;
+            }
+
+            tiempo += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        if (barraVida != null)
+        {
+            barraVida.fillAmount = fillObjetivo;
+            barraVida.color = colorObjetivo;
+        }
+        rutinaTransicionVida = null;
+    }
+
+    private void ReproducirPulsoDanio()
+    {
+        if (rutinaPulsoDanio != null) StopCoroutine(rutinaPulsoDanio);
+        rutinaPulsoDanio = StartCoroutine(PulsoDanio());
+    }
+
+    private IEnumerator PulsoDanio()
+    {
+        float duracion = Mathf.Max(0.01f, duracionPulsoDanio);
+        float tiempo = 0f;
+
+        while (tiempo < duracion)
+        {
+            float t = Mathf.Clamp01(tiempo / duracion);
+            float escala = 1f + intensidadPulsoDanio * Mathf.Sin(t * Mathf.PI);
+            if (barraVida != null)
+                barraVida.rectTransform.localScale = escalaBaseBarra * escala;
+            if (textoVida != null)
+                textoVida.rectTransform.localScale = escalaBaseTexto * escala;
+
+            tiempo += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        if (barraVida != null) barraVida.rectTransform.localScale = escalaBaseBarra;
+        if (textoVida != null) textoVida.rectTransform.localScale = escalaBaseTexto;
+        rutinaPulsoDanio = null;
+    }
     public void ActualizarInventario(List<string> items)
     {
         string contenido = "";

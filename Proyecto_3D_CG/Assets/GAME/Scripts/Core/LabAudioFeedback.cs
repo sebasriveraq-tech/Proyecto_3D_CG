@@ -14,9 +14,12 @@ public static class LabAudioFeedback
     private static AudioClip boton;
     private static AudioClip interruptor;
     private static AudioClip cajon;
-    private static AudioClip puerta;
+    private static AudioClip puertaDeslizante;
+    private static AudioClip liberacionVapor;
     private static AudioClip agenteAlerta;
     private static AudioClip agenteAtaque;
+    private static AudioClip[] impactosJugador;
+    private static AudioClip descarga;
 
     public static void ReproducirInteraccion(Vector3 posicion, string tipo)
     {
@@ -40,7 +43,7 @@ public static class LabAudioFeedback
                 clip = Cargar(ref cajon, "SFX/SFX_CajonMetalico");
                 break;
             case "Puerta_Zona2":
-                clip = Cargar(ref puerta, "SFX/SFX_PuertaLaboratorio");
+                clip = Cargar(ref puertaDeslizante, "Zona2/Doors/SFX_PuertaDeslizante_47");
                 break;
             default:
                 clip = Cargar(ref boton, "SFX/SFX_BotonPresion");
@@ -58,6 +61,47 @@ public static class LabAudioFeedback
         AudioClip clip = Cargar(ref agenteAlerta, "SFX/SFX_AgenteAlerta");
         if (clip != null) AudioSource.PlayClipAtPoint(clip, posicion, 0.9f);
         else ReproducirTono(posicion, 520f, 0.18f, 0.35f);
+    }
+
+    public static void ReproducirAperturaPuerta(Vector3 posicion)
+    {
+        AudioClip clip = Cargar(ref puertaDeslizante, "Zona2/Doors/SFX_PuertaDeslizante_47");
+        if (clip == null)
+        {
+            ReproducirTono(posicion, 145f, 0.9f, 0.28f);
+            return;
+        }
+
+        GameObject sonido = new GameObject("Audio_Puerta_Transicion");
+        sonido.transform.position = posicion;
+        AudioSource fuente = sonido.AddComponent<AudioSource>();
+        fuente.clip = clip;
+        fuente.volume = 0.72f;
+        fuente.spatialBlend = 1f;
+        fuente.minDistance = 2f;
+        fuente.maxDistance = 24f;
+        fuente.Play();
+        Object.DontDestroyOnLoad(sonido);
+        Object.Destroy(sonido, 1.8f);
+    }
+
+    public static void ReproducirLiberacionVapor(Vector3 posicion)
+    {
+        AudioClip clip = Cargar(ref liberacionVapor, "Zona2/Doors/SFX_Liberacion_Vapor_Airlock");
+        if (clip == null) return;
+
+        GameObject sonido = new GameObject("Audio_Liberacion_Vapor_Puerta");
+        sonido.transform.position = posicion;
+        AudioSource fuente = sonido.AddComponent<AudioSource>();
+        fuente.clip = clip;
+        fuente.volume = 0.9f;
+        fuente.pitch = 0.96f;
+        fuente.spatialBlend = 1f;
+        fuente.minDistance = 2f;
+        fuente.maxDistance = 28f;
+        fuente.Play();
+        Object.DontDestroyOnLoad(sonido);
+        Object.Destroy(sonido, 3.2f);
     }
 
     public static void ReproducirAtaqueAgente(Vector3 posicion)
@@ -80,29 +124,32 @@ public static class LabAudioFeedback
 
     public static AudioClip ObtenerAmbiente()
     {
-        AudioClip archivo = Cargar(ref ambiente, "SFX/AMB_LaboratorioHum");
-        if (archivo != null)
-            return archivo;
+        return Cargar(ref ambiente, "Zona2/Ambience/AMB_Sala_Servidores_Loop");
+    }
 
-        if (ambiente != null)
-            return ambiente;
+    public static AudioClip ObtenerMaquinaria()
+    {
+        return ObtenerAmbiente();
+    }
 
-        const int frecuenciaMuestreo = 22050;
-        const float segundos = 4f;
-        int muestras = Mathf.CeilToInt(frecuenciaMuestreo * segundos);
-        float[] datos = new float[muestras];
-        for (int i = 0; i < muestras; i++)
+    public static void ReproducirDanioJugador(Vector3 posicion)
+    {
+        if (impactosJugador == null)
         {
-            float t = (float)i / frecuenciaMuestreo;
-            float modulacion = 0.72f + 0.28f * Mathf.Sin(2f * Mathf.PI * 0.18f * t);
-            datos[i] = modulacion *
-                (0.018f * Mathf.Sin(2f * Mathf.PI * 55f * t) +
-                 0.009f * Mathf.Sin(2f * Mathf.PI * 83f * t));
+            impactosJugador = new[]
+            {
+                Resources.Load<AudioClip>("Zona2/Player/SFX_Impacto_Corporal_01"),
+                Resources.Load<AudioClip>("Zona2/Player/SFX_Impacto_Corporal_02")
+            };
         }
+        AudioClip clip = impactosJugador[Random.Range(0, impactosJugador.Length)];
+        if (clip != null) AudioSource.PlayClipAtPoint(clip, posicion, 0.55f);
+    }
 
-        ambiente = AudioClip.Create("Ambiente_Laboratorio_Runtime", muestras, 1, frecuenciaMuestreo, false);
-        ambiente.SetData(datos, 0);
-        return ambiente;
+    public static void ReproducirDescarga(Vector3 posicion)
+    {
+        AudioClip clip = Cargar(ref descarga, "Zona2/Electrical/SFX_Descarga_Electrica");
+        if (clip != null) AudioSource.PlayClipAtPoint(clip, posicion, 0.35f);
     }
 
     private static AudioClip Cargar(ref AudioClip cache, string ruta)
