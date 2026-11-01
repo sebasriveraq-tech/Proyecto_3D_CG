@@ -1,12 +1,12 @@
 # Git LFS - Laboratorio Abandonado (Unity)
 # Colocar este archivo en la RAIZ del repositorio (junto a .gitignore).
 
-# Textos y escenas de Unity: SIEMPRE normalizar a LF y tratar como texto
+# Textos y escenas de Unity: preservar bytes (pueden ser YAML o binarios)
 * text=auto
 *.cs     text eol=lf
 *.meta   text eol=lf
-*.unity  text eol=lf
-*.asset  text eol=lf
+*.unity  -text
+*.asset  -text
 *.prefab text eol=lf
 *.mat    text eol=lf
 *.shader text eol=lf
