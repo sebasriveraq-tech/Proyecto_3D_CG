@@ -33,7 +33,7 @@ public class MenuPrincipalUI : MonoBehaviour
         if (textoEstado != null)
         {
             textoEstado.text = hayPartida
-                ? "Hay una partida guardada. CONTINUAR retoma la ultima zona."
+                ? "Hay una partida guardada. CONTINUAR retoma la última zona."
                 : "No hay partidas guardadas: empieza con NUEVA PARTIDA.";
         }
     }

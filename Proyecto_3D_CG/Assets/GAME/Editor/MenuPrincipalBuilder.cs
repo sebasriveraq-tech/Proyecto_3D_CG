@@ -19,32 +19,32 @@ public static class MenuPrincipalBuilder
     private static readonly Color BotonNeutro = new Color(0.125f, 0.180f, 0.227f, 1f);
 
     private const string TextoMision =
-        "Estas atrapado en el laboratorio abandonado de la universidad. Recupera las credenciales de acceso, " +
-        "descifra los codigos de seguridad y abre las puertas que comunican la recepcion, el laboratorio y la sala de control.\n" +
+        "Estás atrapado en el laboratorio abandonado de la universidad. Recupera las credenciales de acceso, " +
+        "descifra los códigos de seguridad y abre las puertas que comunican la recepción, el laboratorio y la sala de control.\n" +
         "Cada zona esconde objetos y pistas: explora con calma, guarda lo que encuentres y conserva la integridad.";
 
     private const string TextoControles =
-        "WASD  Mover        RATON  Mirar        SHIFT  Correr        ESPACIO  Saltar\n" +
-        "E  Interactuar        I  Inventario        V  Camara        ESC  Pausa";
+        "WASD  Mover        RATÓN  Mirar        SHIFT  Correr        ESPACIO  Saltar\n" +
+        "E  Interactuar        I  Inventario        V  Cámara        ESC  Pausa";
 
     private const string TextoMovimiento =
         "W A S D\nDesplazarse por la zona.\n\n" +
-        "RATON\nGirar la vista y apuntar.\n\n" +
+        "RATÓN\nGirar la vista y apuntar.\n\n" +
         "SHIFT\nCorrer para recorrer distancias largas.\n\n" +
-        "ESPACIO\nSaltar obstaculos bajos.\n\n" +
-        "V\nAlternar camara en primera y tercera persona.";
+        "ESPACIO\nSaltar obstáculos bajos.\n\n" +
+        "V\nAlternar primera y tercera persona.";
 
     private const string TextoInteraccion =
-        "E\nInteractuar con puertas, terminales, cajones e interruptores.\n\n" +
-        "I\nAbrir el inventario y revisar los codigos descubiertos.\n\n" +
-        "ESC\nPausar la partida y liberar el cursor.\n\n" +
-        "ENTER / C\nEmpezar una partida nueva o continuar la guardada.";
+        "E\nInteractuar con puertas, terminales y objetos.\n\n" +
+        "I\nInventario y códigos descubiertos.\n\n" +
+        "ESC\nPausa y cursor libre.\n\n" +
+        "ENTER / C\nNueva partida o continuar.";
 
     private const string TextoObjetivos =
-        "1. Recorre las tres zonas del laboratorio.\n\n" +
-        "2. Recoge credenciales y codigos: quedan guardados en el inventario.\n\n" +
-        "3. Usa los codigos en las terminales para abrir las puertas de salida.\n\n" +
-        "4. Llega a la sala de control y activa el sistema final.";
+        "1. EXPLORA\nRecorre la recepción, el laboratorio y la sala de control.\n\n" +
+        "2. RECOGE\nCredenciales, códigos y objetos útiles.\n\n" +
+        "3. ABRE\nUsa los códigos en las terminales.\n\n" +
+        "4. ESCAPA\nActiva el sistema de la sala de control.";
 
     [MenuItem("GAME/UI/Construir menu principal")]
     public static void ConstruirMenu()
@@ -74,7 +74,7 @@ public static class MenuPrincipalBuilder
                 return;
             }
 
-            GameObject plantillaTexto = BuscarHijo(panelMenu.transform, "Descripcion_Menu");
+            GameObject plantillaTexto = BuscarHijoRecursivo(panelMenu.transform, "Descripcion_Menu");
             GameObject plantillaBoton = BuscarHijo(panelDerrota.transform, "BtnReintentar");
             if (plantillaTexto == null || plantillaBoton == null)
             {
@@ -115,7 +115,7 @@ public static class MenuPrincipalBuilder
                 new Vector2(0f, 88f), new Vector2(1320f, 250f));
             CrearAcento(cardMision.transform, 6f);
 
-            CrearTexto(plantillaTexto, cardMision.transform, "Encabezado_Mision", "LA MISION",
+            CrearTexto(plantillaTexto, cardMision.transform, "Encabezado_Mision", "LA MISIÓN",
                 24, Cian, TextAlignmentOptions.Left, new Vector2(0f, 96f), new Vector2(1240f, 34f), true);
 
             // El texto original del menu pasa a ser el cuerpo de la mision.
@@ -138,7 +138,7 @@ public static class MenuPrincipalBuilder
                 new Vector2(0f, -142f), new Vector2(1320f, 160f));
             CrearAcento(cardControles.transform, 6f);
 
-            CrearTexto(plantillaTexto, cardControles.transform, "Encabezado_Controles", "MECANICAS Y CONTROLES",
+            CrearTexto(plantillaTexto, cardControles.transform, "Encabezado_Controles", "MECÁNICAS Y CONTROLES",
                 24, Cian, TextAlignmentOptions.Left, new Vector2(0f, 52f), new Vector2(1240f, 32f), true);
 
             CrearTexto(plantillaTexto, cardControles.transform, "Texto_Controles", TextoControles,
@@ -159,7 +159,7 @@ public static class MenuPrincipalBuilder
                 new Vector2(-165f, 0f), new Vector2(310f, 60f), BotonNeutro,
                 new UnityAction(control.BotonContinuar));
 
-            CrearBoton(plantillaBoton, fila.transform, "BtnComoJugar", "COMO JUGAR",
+            CrearBoton(plantillaBoton, fila.transform, "BtnComoJugar", "CÓMO JUGAR",
                 new Vector2(165f, 0f), new Vector2(310f, 60f), BotonNeutro,
                 new UnityAction(control.BotonComoJugar));
 
@@ -221,11 +221,11 @@ public static class MenuPrincipalBuilder
         fondo.color = new Color(0.02f, 0.035f, 0.055f, 1f);
         fondo.raycastTarget = true;
 
-        CrearTexto(plantillaTexto, panel.transform, "Titulo_ComoJugar", "COMO JUGAR",
+        CrearTexto(plantillaTexto, panel.transform, "Titulo_ComoJugar", "CÓMO JUGAR",
             56, TextoClaro, TextAlignmentOptions.Center, new Vector2(0f, 440f), new Vector2(1500f, 90f), true);
 
         CrearTexto(plantillaTexto, panel.transform, "Subtitulo_ComoJugar",
-            "MECANICAS DEL JUGADOR E INTERACCION CON LAS ESCENAS",
+            "MECÁNICAS DEL JUGADOR E INTERACCIÓN CON LAS ESCENAS",
             20, Cian, TextAlignmentOptions.Center, new Vector2(0f, 378f), new Vector2(1500f, 40f), false);
 
         CrearTarjetaConTexto(plantillaTexto, panel.transform, "Card_Movimiento", "MOVIMIENTO", TextoMovimiento,
@@ -235,12 +235,12 @@ public static class MenuPrincipalBuilder
         CrearTarjetaConTexto(plantillaTexto, panel.transform, "Card_Objetivos", "OBJETIVOS", TextoObjetivos,
             new Vector2(460f, 100f), new Vector2(410f, 440f));
 
-        CrearBoton(plantillaBoton, panel.transform, "BtnVolverComoJugar", "VOLVER AL MENU",
+        CrearBoton(plantillaBoton, panel.transform, "BtnVolverComoJugar", "VOLVER AL MENÚ",
             new Vector2(0f, -320f), new Vector2(360f, 64f), Cian,
             new UnityAction(control.CerrarComoJugar));
 
         CrearTexto(plantillaTexto, panel.transform, "Pie_ComoJugar",
-            "ESC tambien vuelve al menu principal",
+            "ESC también vuelve al menú principal",
             16, TextoSuave, TextAlignmentOptions.Center, new Vector2(0f, -430f), new Vector2(1400f, 30f), false);
 
         panel.SetActive(false);
@@ -369,7 +369,8 @@ public static class MenuPrincipalBuilder
             texto.text = etiqueta;
             texto.fontSize = 21;
             texto.fontStyle = FontStyles.Bold;
-            texto.color = Color.white;
+            // Sobre un boton claro (cian) el texto va oscuro para que se lea bien.
+            texto.color = color.grayscale > 0.5f ? new Color(0.03f, 0.06f, 0.08f, 1f) : Color.white;
             texto.characterSpacing = 2f;
             texto.alignment = TextAlignmentOptions.Center;
         }
@@ -390,6 +391,12 @@ public static class MenuPrincipalBuilder
 
     private static void LimpiarGenerados(Transform canvas, Transform panelMenu)
     {
+        // En una corrida anterior la descripcion quedo dentro de Card_Mision.
+        // Se rescata antes de borrar la tarjeta para reutilizarla como plantilla.
+        GameObject descripcion = BuscarHijoRecursivo(panelMenu, "Descripcion_Menu");
+        if (descripcion != null && descripcion.transform.parent != panelMenu)
+            descripcion.transform.SetParent(panelMenu, false);
+
         string[] enMenu =
         {
             "Card_Mision", "Card_Controles", "Fila_Botones", "Texto_Estado",
@@ -405,6 +412,18 @@ public static class MenuPrincipalBuilder
 
         GameObject panelAyuda = BuscarHijo(canvas, "Panel_ComoJugar");
         if (panelAyuda != null) Object.DestroyImmediate(panelAyuda);
+    }
+
+    private static GameObject BuscarHijoRecursivo(Transform padre, string nombre)
+    {
+        for (int i = 0; i < padre.childCount; i++)
+        {
+            Transform hijo = padre.GetChild(i);
+            if (hijo.name == nombre) return hijo.gameObject;
+            GameObject encontrado = BuscarHijoRecursivo(hijo, nombre);
+            if (encontrado != null) return encontrado;
+        }
+        return null;
     }
 
     private static GameObject BuscarHijo(Transform padre, string nombre)
