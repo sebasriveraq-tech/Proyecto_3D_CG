@@ -17,13 +17,24 @@ public class PlayerController : MonoBehaviour
     public Transform camara;              // Camera hija del Player
     public float sensibilidadMouse = 0.12f;
 
+    [Header("Seguridad contra caidas")]
+    public float margenSobreElSuelo = 0.05f;  // altura a la que se apoya al jugador al entrar a la zona
+    public float caidaMaxima = 6f;            // metros por debajo del suelo antes de devolverlo a tierra
+
     private CharacterController controlador;
     private float velocidadVertical;     // subida/bajada por gravedad y salto
     private float rotacionX;              // mirar arriba/abajo
+    private float alturaSuelo;            // altura del piso de la zona actual
+    private Vector3 posicionSegura;       // ultimo punto con el jugador apoyado
 
     private void Start()
     {
         controlador = GetComponent<CharacterController>();
+
+        // Apoyar al jugador exactamente sobre el piso de la zona: evita nacer
+        // atravesando el suelo o quedar flotando cuando el spawn no es exacto.
+        AjustarAlSuelo();
+        posicionSegura = transform.position;
 
         // Bloquear el mouse en el centro de la ventana.
         Cursor.lockState = CursorLockMode.Locked;
@@ -91,5 +102,46 @@ public class PlayerController : MonoBehaviour
 
         Vector3 movimiento = direccion * velocidadActual + Vector3.up * velocidadVertical;
         controlador.Move(movimiento * Time.deltaTime);
+
+        // Guardar el ultimo punto donde el jugador estaba realmente apoyado.
+        if (controlador.isGrounded) posicionSegura = transform.position;
+
+        // Si por cualquier motivo atraviesa el suelo, se devuelve a la superficie.
+        if (transform.position.y < alturaSuelo - Mathf.Max(3f, Mathf.Abs(caidaMaxima)))
+            RecuperarDeCaida();
+    }
+
+    // Coloca al jugador justo encima del piso que hay debajo del punto de aparicion.
+    private void AjustarAlSuelo()
+    {
+        Vector3 origen = transform.position + Vector3.up * 3f;
+        RaycastHit[] golpes = new RaycastHit[16];
+        int total = Physics.RaycastNonAlloc(origen, Vector3.down, golpes, 12f, ~0, QueryTriggerInteraction.Ignore);
+
+        float alturaPiso = float.NegativeInfinity;
+        for (int i = 0; i < total; i++)
+        {
+            Collider otro = golpes[i].collider;
+            if (otro == null || otro.transform.IsChildOf(transform) || otro is CharacterController) continue;
+            if (golpes[i].point.y > alturaPiso) alturaPiso = golpes[i].point.y;
+        }
+
+        if (float.IsNegativeInfinity(alturaPiso)) return; // sin piso detectado: no se toca el spawn
+
+        alturaSuelo = alturaPiso;
+        float objetivo = alturaPiso + margenSobreElSuelo;
+        if (Mathf.Abs(transform.position.y - objetivo) < 0.01f) return;
+
+        controlador.enabled = false;
+        transform.position = new Vector3(transform.position.x, objetivo, transform.position.z);
+        controlador.enabled = true;
+    }
+
+    private void RecuperarDeCaida()
+    {
+        controlador.enabled = false;
+        transform.position = posicionSegura + Vector3.up * 0.15f;
+        controlador.enabled = true;
+        velocidadVertical = 0f;
     }
 }
