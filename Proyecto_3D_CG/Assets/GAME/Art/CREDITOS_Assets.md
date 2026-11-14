@@ -21,6 +21,7 @@ Se actualiza **en el mismo commit** en el que se agrega el asset.
 | 3 | Pickup Key Card | 3D | Quaternius (publicado en Poly Pizza) | https://poly.pizza/m/EDvCEBvs8k | CC0 | credencial | Compartidos (`Art/Compartidos/Models`) | Convertido de GLB a OBJ; atlas incluido; escala 10,4 cm de ancho |
 | 4 | Wall Clock | 3D | PierreB3D (Poly Haven) | https://polyhaven.com/a/wall_clock | CC0 | reloj_pared | Z1 (`Art/Z1_Recepcion/Models`) | Convertido de glTF a OBJ; textura difusa 1K; se omitió el vidrio; pivote centrado, 32 × 32 cm |
 | 5 | Korean Fire Extinguisher 01 | 3D | UM JOORIN (Poly Haven) | https://polyhaven.com/a/korean_fire_extinguisher_01 | CC0 | extintor | Z1 (`Art/Z1_Recepcion/Models`) | Convertido de glTF a OBJ; texturas 1K; se omitió el vidrio del manómetro; base en el piso, 66 cm de alto |
+| 6 | Animated Drone | 3D animado | hartwelkisaka | https://sketchfab.com/3d-models/animated-drone-d47d61f8a78d4cce9f985ad7ade3e403 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | dron | Agente de Z1 (`Art/Z1_Recepcion`) | Convertido de GLB a FBX, texturas extraídas y escala ajustada. Marcado por el autor como NoAI: no utilizar como entrada ni para entrenar o desarrollar IA generativa. |
 
 > Ejemplo de fila completa:
 > `| 1 | Sci-Fi Essentials Kit | 3D | Quaternius | https://quaternius.com/ | CC0 | consola, pantalla | Terminal_Registro (Z1) | escalado a 1.4 m de alto |`
