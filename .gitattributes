@@ -5,7 +5,7 @@
 * text=auto
 *.cs     text eol=lf
 *.meta   text eol=lf
-*.unity  -text
+*.unity  text eol=lf
 *.asset  -text
 *.prefab text eol=lf
 *.mat    text eol=lf
