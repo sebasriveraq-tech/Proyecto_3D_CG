@@ -11,6 +11,13 @@ public class ControlPaneles : MonoBehaviour
         // Sin teclado o sin Canvas no hay nada que hacer.
         if (Keyboard.current == null || UIManager.Instance == null) return;
 
+        // Con la ayuda abierta, ESC vuelve al menu principal.
+        if (UIManager.Instance.panelComoJugar != null && UIManager.Instance.panelComoJugar.activeSelf)
+        {
+            if (Keyboard.current.escapeKey.wasPressedThisFrame) CerrarComoJugar();
+            return;
+        }
+
         // ENTER: solo funciona en el menu (cuando el Panel_Menu esta visible). Empieza una partida nueva.
         if (Keyboard.current.enterKey.wasPressedThisFrame && UIManager.Instance.panelMenu.activeSelf)
         {
@@ -68,6 +75,34 @@ public class ControlPaneles : MonoBehaviour
     }
 
     // ---------------------------------------------------------------
+    // BOTONES DEL MENU PRINCIPAL
+    // ---------------------------------------------------------------
+
+    // Los botones del menu llaman a estos metodos publicos (los mismos que ENTER y C).
+    public void BotonNuevaPartida() { IniciarPartidaNueva(); }
+    public void BotonContinuar() { ContinuarPartida(); }
+
+    public void BotonComoJugar()
+    {
+        if (UIManager.Instance != null) UIManager.Instance.MostrarComoJugar();
+    }
+
+    public void CerrarComoJugar()
+    {
+        if (UIManager.Instance != null) UIManager.Instance.MostrarMenu();
+    }
+
+    public void BotonSalir()
+    {
+        Time.timeScale = 1f;
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;   // en el editor detiene el Play Mode
+#else
+        Application.Quit();
+#endif
+    }
+
+    // ---------------------------------------------------------------
     // BOTONES DE LOS PANELES FINALES
     // ---------------------------------------------------------------
 
@@ -93,6 +128,8 @@ public class ControlPaneles : MonoBehaviour
     public void VolverAlMenu()
     {
         Time.timeScale = 1f;
+        Cursor.lockState = CursorLockMode.None;   // el menu principal usa el mouse
+        Cursor.visible = true;
         SceneManager.LoadScene("Menu");
     }
 

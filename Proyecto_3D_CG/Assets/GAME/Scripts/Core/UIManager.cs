@@ -11,6 +11,7 @@ public class UIManager : MonoBehaviour
     [Header("Paneles (hijos del Canvas)")]
     public GameObject panelHUD;
     public GameObject panelMenu;
+    public GameObject panelComoJugar;
     public GameObject panelPausa;
     public GameObject panelInventario;
     public GameObject panelVictoria;
@@ -85,6 +86,13 @@ public class UIManager : MonoBehaviour
 
     private void Start()
     {
+        // El menu principal se maneja con el mouse: el cursor debe verse al cargar la escena.
+        if (panelMenu != null && panelMenu.activeSelf)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+
         // Al entrar a una zona, el HUD muestra lo que ya se consiguio antes.
         if (GameManager.Instance == null) return;
         ActualizarVida(GameManager.Instance.vidaJugador, 100);
@@ -99,6 +107,7 @@ public class UIManager : MonoBehaviour
     {
         if (panelHUD != null) panelHUD.SetActive(false);
         if (panelMenu != null) panelMenu.SetActive(false);
+        if (panelComoJugar != null) panelComoJugar.SetActive(false);
         if (panelPausa != null) panelPausa.SetActive(false);
         if (panelInventario != null) panelInventario.SetActive(false);
         if (panelVictoria != null) panelVictoria.SetActive(false);
@@ -107,7 +116,22 @@ public class UIManager : MonoBehaviour
     }
 
     public void MostrarHUD()        { MostrarSolo(panelHUD); }
-    public void MostrarMenu()       { MostrarSolo(panelMenu); }
+
+    // El menu principal y su ayuda se manejan con el mouse: el cursor debe verse.
+    public void MostrarMenu()
+    {
+        MostrarSolo(panelMenu);
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+
+    public void MostrarComoJugar()
+    {
+        MostrarSolo(panelComoJugar);
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+
     public void MostrarPausa()      { MostrarSolo(panelPausa); }
     public void MostrarInventario() { MostrarSolo(panelInventario); }
 
