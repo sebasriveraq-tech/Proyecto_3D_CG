@@ -5,7 +5,7 @@ using UnityEngine;
 public class PuertaCorrediza : Interactable
 {
     [Header("Requisito")]
-    public string idItemRequerido = "credencial_z1";
+    public string idItemRequerido = "credencial_z3";
 
     [Header("Movimiento")]
     public Transform hojaPuerta;                              // la hoja que se desliza
