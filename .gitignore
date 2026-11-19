@@ -115,3 +115,9 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+Proyecto_3D_CG/Assets/GAME/Art/Player.zip
+Proyecto_3D_CG/Assets/GAME/Art/Player.zip.meta
+
+# Partida guardada: vive en StreamingAssets pero no se sube al repositorio
+Proyecto_3D_CG/Assets/StreamingAssets/guardado.json
+Proyecto_3D_CG/Assets/StreamingAssets/guardado.json.meta

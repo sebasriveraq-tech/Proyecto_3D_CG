@@ -17,6 +17,10 @@ public class GameManager : MonoBehaviour
     public List<string> inventario = new List<string>();        // items recogidos
     public List<string> codigos = new List<string>();           // codigos descubiertos
 
+    // Modulos retirados de la terminal de recepcion: el ultimo sale primero.
+    public Stack<string> modulosTerminalZ1 = new Stack<string>();
+    public int cantidadModulosRetiradosZ1 = 0;
+
     public Dictionary<string, bool> puertas = new Dictionary<string, bool>();     // idPuerta -> abierta
     public Dictionary<string, bool> objetivos = new Dictionary<string, bool>();   // idObjetivo -> completado
 
@@ -137,6 +141,8 @@ public class GameManager : MonoBehaviour
         vidaJugador = 100;
         inventario.Clear();
         codigos.Clear();
+        modulosTerminalZ1.Clear();
+        cantidadModulosRetiradosZ1 = 0;
         puertas.Clear();
         objetivos.Clear();
         tiempoJugadoSegundos = 0f;

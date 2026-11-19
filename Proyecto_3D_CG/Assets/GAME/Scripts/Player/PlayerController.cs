@@ -43,8 +43,8 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
-        // Si el juego esta en pausa (Time.timeScale = 0) el jugador no se mueve ni gira la camara.
-        if (Time.timeScale == 0f) return;
+        // Con el juego pausado o el panel de reparacion abierto el jugador queda quieto.
+        if (Time.timeScale == 0f || PanelTerminalZ1.Abierto) return;
 
         MirarConMouse();
         MoverConTeclado();

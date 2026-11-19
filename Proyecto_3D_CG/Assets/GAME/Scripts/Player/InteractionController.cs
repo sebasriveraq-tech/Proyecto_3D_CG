@@ -29,8 +29,8 @@ public class InteractionController : MonoBehaviour
 
     private void Update()
     {
-        // Si el juego esta en pausa, no se detectan objetos ni se interactua.
-        if (Time.timeScale == 0f) return;
+        // Si el juego esta en pausa o el panel de reparacion esta abierto, no se interactua.
+        if (Time.timeScale == 0f || PanelTerminalZ1.Abierto) return;
 
         DetectarObjeto();
 

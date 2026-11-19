@@ -119,6 +119,7 @@ public class PlayerVisual : MonoBehaviour
 
     private void CambiarCamaraConTeclaV()
     {
+        if (PanelTerminalZ1.Abierto) return;
         if (Keyboard.current == null || !Keyboard.current.vKey.wasPressedThisFrame) return;
 
         if (cabeza != null)

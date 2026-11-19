@@ -32,6 +32,10 @@ public class ControlPaneles : MonoBehaviour
             return;
         }
 
+        // Con el panel de reparacion abierto no se usa ninguna otra tecla de panel:
+        // el propio panel procesa ESC y las letras.
+        if (PanelTerminalZ1.Abierto) return;
+
         // ESC: solo reanuda si el panel de pausa esta abierto; si el HUD esta visible, lo pausa.
         // (Los paneles de Victoria y Derrota tienen botones y no se cierran con ESC.)
         if (Keyboard.current.escapeKey.wasPressedThisFrame)
@@ -43,8 +47,8 @@ public class ControlPaneles : MonoBehaviour
             return;
         }
 
-        // I: abre o cierra el inventario (solo jugando, nunca pausado).
-        if (Keyboard.current.iKey.wasPressedThisFrame && Time.timeScale > 0f)
+        // I: abre o cierra el inventario (solo jugando y sin el panel de reparacion abierto).
+        if (Keyboard.current.iKey.wasPressedThisFrame && Time.timeScale > 0f && !PanelTerminalZ1.Abierto)
         {
             if (UIManager.Instance.panelInventario.activeSelf)
                 UIManager.Instance.MostrarHUD();

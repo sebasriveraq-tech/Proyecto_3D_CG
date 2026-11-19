@@ -1,14 +1,30 @@
 using UnityEngine;
 
-/// Terminal: al interactuar entrega un codigo al GameManager (por ejemplo el Codigo A de la Zona 1).
-/// No abre puertas ni cambia de escena: solo suma el codigo y avisa por el HUD.
+/// Terminal: entrega un codigo. La terminal de recepcion primero se repara con una pila.
 public class Terminal : Interactable
 {
     [Header("Codigo que entrega")]
-    public string idCodigo = "codigo_a";        // ID interno del contrato
-    public string codigoVisible = "A-4721";     // lo que ve el jugador
+    public string idCodigo = "codigo_a";
+    public string codigoVisible = "A-4721";
     public bool requiereEnergia;
     public LaboratorioController laboratorio;
+
+    private const string objetivoReparacionZ1 = "terminal_reparada_z1";
+    private readonly string[] modulosZ1 = { "A", "B", "C" };
+    private PanelTerminalZ1 panelReparacion;
+    private PantallaTerminalZ1 pantalla;
+
+    private void Start()
+    {
+        if (!EsTerminalDeRecepcion()) return;
+
+        // Estos objetos solo se crean para la terminal de la Zona 1.
+        mensajePrompt = "Presiona E para usar la terminal";
+        panelReparacion = gameObject.AddComponent<PanelTerminalZ1>();
+        pantalla = gameObject.AddComponent<PantallaTerminalZ1>();
+        pantalla.Configurar(this);
+        ActualizarPantalla();
+    }
 
     public override void Interactuar()
     {
@@ -21,19 +37,88 @@ public class Terminal : Interactable
             return;
         }
 
-        if (GameManager.Instance != null)
-        {
-            bool yaTeniaCodigo = GameManager.Instance.TieneCodigo(idCodigo);
-            GameManager.Instance.AgregarCodigo(idCodigo);
+        GameManager juego = GameManager.Instance;
+        if (juego == null) return;
 
-            // El panel de inventario muestra la lista de codigos descubiertos.
-            if (UIManager.Instance != null)
+        if (EsTerminalDeRecepcion())
+        {
+            // Las partidas anteriores que ya tenian el codigo no repiten la reparacion.
+            if (juego.ObjetivoCompletado(objetivoReparacionZ1))
+                juego.AgregarCodigo(idCodigo);
+            ActualizarPantalla();
+            if (panelReparacion != null) panelReparacion.Abrir(this);
+            return;
+        }
+
+        bool yaTeniaCodigo = juego.TieneCodigo(idCodigo);
+        juego.AgregarCodigo(idCodigo);
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.ActualizarCodigos(juego.codigos);
+            UIManager.Instance.MostrarMensaje((yaTeniaCodigo ? "Código consultado: " : "Código obtenido: ") + codigoVisible);
+        }
+    }
+
+    private bool EsTerminalDeRecepcion()
+    {
+        return gameObject.scene.name == "Zona1_Recepcion" && idCodigo == "codigo_a";
+    }
+
+    public bool ReparacionTerminada()
+    {
+        GameManager juego = GameManager.Instance;
+        return juego != null &&
+            (juego.TieneCodigo(idCodigo) || juego.ObjetivoCompletado(objetivoReparacionZ1));
+    }
+
+    public string SiguienteModulo()
+    {
+        GameManager juego = GameManager.Instance;
+        if (juego == null || ReparacionTerminada()) return "";
+        if (juego.cantidadModulosRetiradosZ1 < modulosZ1.Length)
+            return modulosZ1[juego.cantidadModulosRetiradosZ1];
+        if (juego.modulosTerminalZ1.Count > 0)
+            return juego.modulosTerminalZ1.Peek();
+        return "";
+    }
+
+    // La tecla equivocada no modifica la pila ni entrega el codigo.
+    public bool ProcesarModulo(string letra)
+    {
+        GameManager juego = GameManager.Instance;
+        if (juego == null || ReparacionTerminada() || letra != SiguienteModulo()) return false;
+
+        if (juego.cantidadModulosRetiradosZ1 < modulosZ1.Length)
+        {
+            juego.modulosTerminalZ1.Push(letra);
+            juego.cantidadModulosRetiradosZ1++;
+        }
+        else
+        {
+            // El ultimo modulo retirado es el primero que se instala.
+            juego.modulosTerminalZ1.Pop();
+            if (juego.modulosTerminalZ1.Count == 0)
             {
-                UIManager.Instance.ActualizarCodigos(GameManager.Instance.codigos);
-                UIManager.Instance.MostrarMensaje(
-                    yaTeniaCodigo ? "Código consultado: " + codigoVisible :
-                    "Código obtenido: " + codigoVisible);
+                juego.CompletarObjetivo(objetivoReparacionZ1);
+                juego.AgregarCodigo(idCodigo);
+                if (UIManager.Instance != null)
+                {
+                    UIManager.Instance.ActualizarCodigos(juego.codigos);
+                    UIManager.Instance.MostrarMensaje("Panel reparado. Código obtenido: " + codigoVisible);
+                }
+                ActualizarPantalla();
             }
         }
+        return true;
+    }
+
+    private void ActualizarPantalla()
+    {
+        if (pantalla == null) return;
+        GameManager juego = GameManager.Instance;
+        int pasosHechos = 0;
+        if (juego != null)
+            pasosHechos = juego.cantidadModulosRetiradosZ1 + (modulosZ1.Length - juego.modulosTerminalZ1.Count);
+        pantalla.ActualizarEstado(ReparacionTerminada(), codigoVisible, pasosHechos, modulosZ1.Length * 2);
     }
 }
