@@ -1,19 +1,25 @@
+using System;
 using System.Collections;
 using UnityEngine;
 
-/// Puerta corrediza: se abre solo si el jugador tiene el item requerido en el inventario.
+/// Puerta corrediza: se abre solo si (opcionalmente) hay energía y el jugador tiene la credencial.
 public class PuertaCorrediza : Interactable
 {
-    [Header("Requisito")]
-    public string idItemRequerido = "credencial_z3";
+    [Header("Requisitos")]
+    public string idItemRequerido = "credencial_z3";   // pon aquí el Id Item de tu credencial
+    public bool requiereEnergia = true;
+    public Scene3Controller controlador;                // para saber si ya se encendieron las luces
 
     [Header("Movimiento")]
-    public Transform hojaPuerta;                              // la hoja que se desliza
-    public Vector3 desplazamientoAbierta = new Vector3(-2f, 0f, 0f); // local; ajusta para abrir a la izquierda
+    public Transform hojaPuerta;                                       // la hoja que se desliza
+    public Vector3 desplazamientoAbierta = new Vector3(-2f, 0f, 0f);  // local; ajusta para abrir a la izquierda
     public float tiempoApertura = 0.8f;
 
     [Header("Audio")]
     public AudioClip sonidoDenegado;
+
+    /// Se dispara cuando la puerta concede el acceso (el Scene3Controller lo escucha).
+    public Action AlAbrirse;
 
     private Vector3 posCerrada, posAbierta;
     private bool abierta, enMovimiento;
@@ -29,17 +35,22 @@ public class PuertaCorrediza : Interactable
     {
         if (abierta || enMovimiento) return;
 
-        if (!TieneCredencial())
+        // 1) Sin energía: primero hay que encontrar el código y encender las luces
+        if (requiereEnergia && controlador != null && !controlador.EnergiaRestaurada)
         {
-            if (sonidoDenegado != null)
-                AudioSource.PlayClipAtPoint(sonidoDenegado, transform.position);
-
-            if (UIManager.Instance != null)
-                UIManager.Instance.MostrarMensaje("Acceso denegado: necesitas una credencial");
+            Denegar("Primero debes encontrar el código y encender las luces");
             return;
         }
 
-        ReproducirSonidoInteraccion();   // sonido de activación de tu clase base
+        // 2) Con energía pero sin credencial
+        if (!TieneCredencial())
+        {
+            Denegar("Se necesita la credencial");
+            return;
+        }
+
+        // 3) Todo en orden: se abre
+        ReproducirSonidoInteraccion();
 
         if (UIManager.Instance != null)
         {
@@ -49,6 +60,16 @@ public class PuertaCorrediza : Interactable
 
         abierta = true;
         StartCoroutine(Mover(posCerrada, posAbierta));
+        AlAbrirse?.Invoke();
+    }
+
+    private void Denegar(string mensaje)
+    {
+        if (sonidoDenegado != null)
+            AudioSource.PlayClipAtPoint(sonidoDenegado, transform.position);
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.MostrarMensaje(mensaje);
     }
 
     private bool TieneCredencial()

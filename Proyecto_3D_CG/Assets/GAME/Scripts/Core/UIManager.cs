@@ -17,6 +17,8 @@ public class UIManager : MonoBehaviour
     public GameObject panelInventario;
     public GameObject panelVictoria;
     public GameObject panelDerrota;
+    public PanelTeclado panelTeclado;
+
 
     [Header("Elementos del HUD")]
     public Image barraVida;              // Image con Image Type = Filled (Horizontal)
@@ -153,6 +155,7 @@ public class UIManager : MonoBehaviour
     // El menu principal y su ayuda se manejan con el mouse: el cursor debe verse.
     public void MostrarMenu()
     {
+        PanelTeclado.CerrarPanelActivoPorEventoExterno();
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarSolo(panelMenu);
         Cursor.lockState = CursorLockMode.None;
@@ -175,15 +178,22 @@ public class UIManager : MonoBehaviour
 
     public void MostrarPausa()
     {
+        PanelTeclado.CerrarPanelActivoPorEventoExterno();
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarSolo(panelPausa);
     }
 
     public void MostrarInventario() { MostrarSolo(panelInventario); }
 
+    public void AbrirTeclado(int longitud, System.Func<string, bool> validar, System.Action alCerrar)
+    {
+        if (panelTeclado != null) panelTeclado.Abrir(longitud, validar, alCerrar);
+    }
+
     // Los paneles finales tienen botones: se congela el juego y se libera el mouse para poder pulsarlos.
     public void MostrarVictoria()
     {
+        PanelTeclado.CerrarPanelActivoPorEventoExterno();
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarSolo(panelVictoria);
         CongelarParaBoton();
@@ -191,10 +201,13 @@ public class UIManager : MonoBehaviour
 
     public void MostrarDerrota()
     {
+        PanelTeclado.CerrarPanelActivoPorEventoExterno();
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarSolo(panelDerrota);
         CongelarParaBoton();
     }
+
+    
 
     private void CongelarParaBoton()
     {
