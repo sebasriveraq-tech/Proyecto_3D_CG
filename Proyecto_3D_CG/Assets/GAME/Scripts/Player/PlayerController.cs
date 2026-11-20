@@ -27,9 +27,14 @@ public class PlayerController : MonoBehaviour
     private float alturaSuelo;            // altura del piso de la zona actual
     private Vector3 posicionSegura;       // ultimo punto con el jugador apoyado
 
+    public float RotacionVertical => rotacionX;
+
     private void Start()
     {
         controlador = GetComponent<CharacterController>();
+
+        if (GameSettingsManager.Instance != null)
+            sensibilidadMouse = GameSettingsManager.Instance.sensibilidadMouse;
 
         // Apoyar al jugador exactamente sobre el piso de la zona: evita nacer
         // atravesando el suelo o quedar flotando cuando el spawn no es exacto.
@@ -46,8 +51,23 @@ public class PlayerController : MonoBehaviour
         // Con el juego pausado o el panel de reparacion abierto el jugador queda quieto.
         if (Time.timeScale == 0f || PanelTerminalZ1.Abierto) return;
 
+        if (ArmarioEscondite.JugadorOculto)
+        {
+            MirarDentroDeArmario();
+            return;
+        }
+
         MirarConMouse();
         MoverConTeclado();
+    }
+
+    private void MirarDentroDeArmario()
+    {
+        if (Mouse.current == null || camara == null) return;
+        Vector2 movimientoMouse = Mouse.current.delta.ReadValue();
+        rotacionX -= movimientoMouse.y * sensibilidadMouse;
+        rotacionX = Mathf.Clamp(rotacionX, -22f, 22f);
+        camara.localRotation = Quaternion.Euler(rotacionX, 0f, 0f);
     }
 
    

@@ -1,6 +1,7 @@
 using UnityEngine;
 
-/// Terminal: entrega un codigo. La terminal de recepcion primero se repara con una pila.
+/// Terminal: entrega un código. En Zona 1 usa PanelTerminalZ1; en Zona 2 abre el minijuego de Hackeo de Frecuencia
+/// para desbloquear la compuerta de salida (Código LAB-2381).
 public class Terminal : Interactable
 {
     [Header("Codigo que entrega")]
@@ -9,21 +10,169 @@ public class Terminal : Interactable
     public bool requiereEnergia;
     public LaboratorioController laboratorio;
 
+    [Header("UI Zona 2")]
+    public PanelMiniJuegoZ2 panelServidorZ2;
+
     private const string objetivoReparacionZ1 = "terminal_reparada_z1";
     private readonly string[] modulosZ1 = { "A", "B", "C" };
     private PanelTerminalZ1 panelReparacion;
     private PantallaTerminalZ1 pantalla;
+    private Light luzEstadoZ2;
+    private Renderer ledEstadoZ2;
+    private Transform balizaFlotanteZ2;
+    private Renderer rendererBalizaZ2;
 
     private void Start()
     {
-        if (!EsTerminalDeRecepcion()) return;
+        if (EsTerminalDeRecepcion())
+        {
+            // Estos objetos solo se crean para la terminal de la Zona 1.
+            mensajePrompt = "Presiona E para usar la terminal";
+            panelReparacion = gameObject.AddComponent<PanelTerminalZ1>();
+            pantalla = gameObject.AddComponent<PantallaTerminalZ1>();
+            pantalla.Configurar(this);
+            ActualizarPantalla();
+            return;
+        }
 
-        // Estos objetos solo se crean para la terminal de la Zona 1.
-        mensajePrompt = "Presiona E para usar la terminal";
-        panelReparacion = gameObject.AddComponent<PanelTerminalZ1>();
-        pantalla = gameObject.AddComponent<PantallaTerminalZ1>();
-        pantalla.Configurar(this);
-        ActualizarPantalla();
+        if (gameObject.scene.name == "Zona2_Laboratorio")
+        {
+            bool yaTieneCodigo = GameManager.Instance != null && GameManager.Instance.TieneCodigo(idCodigo);
+            if (panelServidorZ2 != null)
+            {
+                panelServidorZ2.Configurar(
+                    PanelMiniJuegoZ2.TipoMiniJuego.RecuperacionDatos,
+                    codigoVisible,
+                    yaTieneCodigo,
+                    CompletarRecuperacionDatosZ2,
+                    transform);
+            }
+            ConfigurarIndicadorVisualZ2();
+        }
+    }
+
+    private void CompletarRecuperacionDatosZ2()
+    {
+        GameManager juego = GameManager.Instance;
+        if (juego == null) return;
+
+        juego.AgregarCodigo(idCodigo);
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.ActualizarCodigos(juego.codigos);
+            UIManager.Instance.MostrarMensaje(
+                $"<b><color=#38F28D>¡SISTEMA RESTAURADO!</color></b> Compuerta de salida desbloqueada — Código {codigoVisible} registrado",
+                4.0f);
+        }
+
+        if (laboratorio != null)
+            laboratorio.NotificarHackeoServidorCompletado(codigoVisible);
+
+        ActualizarIndicadorVisualZ2();
+    }
+
+    private void Update()
+    {
+        if (luzEstadoZ2 != null)
+            ActualizarIndicadorVisualZ2();
+
+        if (balizaFlotanteZ2 != null)
+        {
+            float yOffset = 0.85f + Mathf.Sin(Time.unscaledTime * 3.2f) * 0.05f;
+            balizaFlotanteZ2.localPosition = new Vector3(0f, yOffset, 0f);
+            balizaFlotanteZ2.Rotate(0f, 55f * Time.unscaledDeltaTime, 0f, Space.Self);
+        }
+    }
+
+    private void ConfigurarIndicadorVisualZ2()
+    {
+        MeshRenderer raizRenderer = GetComponent<MeshRenderer>();
+        if (raizRenderer != null)
+            raizRenderer.enabled = false;
+
+        // Ajustar BoxCollider al volumen exacto de la consola/estación sin bloquear pasillos vecinos
+        BoxCollider box = GetComponent<BoxCollider>();
+        if (box != null)
+        {
+            box.center = new Vector3(0f, 0.05f, 0f);
+            box.size = new Vector3(0.88f, 1.05f, 1.25f);
+        }
+
+        Shader sh = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+
+        GameObject ledObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        ledObj.name = "Indicador_Pantalla_Z2";
+        ledObj.transform.SetParent(transform, false);
+        ledObj.transform.localPosition = new Vector3(0f, 0.28f, -0.20f);
+        ledObj.transform.localRotation = Quaternion.Euler(-24f, 0f, 0f);
+        ledObj.transform.localScale = new Vector3(0.44f, 0.22f, 0.02f);
+        Collider col = ledObj.GetComponent<Collider>();
+        if (col != null) Destroy(col);
+        ledEstadoZ2 = ledObj.GetComponent<Renderer>();
+        if (sh != null && ledEstadoZ2 != null)
+            ledEstadoZ2.sharedMaterial = new Material(sh) { name = "MAT_Estado_Terminal_Z2" };
+
+        GameObject balizaObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        balizaObj.name = "Baliza_Terminal_Servidores_Z2";
+        balizaObj.transform.SetParent(transform, false);
+        balizaObj.transform.localPosition = new Vector3(0f, 0.85f, 0f);
+        balizaObj.transform.localRotation = Quaternion.Euler(45f, 45f, 0f);
+        balizaObj.transform.localScale = new Vector3(0.16f, 0.16f, 0.16f);
+        Collider colB = balizaObj.GetComponent<Collider>();
+        if (colB != null) Destroy(colB);
+        balizaFlotanteZ2 = balizaObj.transform;
+        rendererBalizaZ2 = balizaObj.GetComponent<Renderer>();
+        if (sh != null && rendererBalizaZ2 != null)
+            rendererBalizaZ2.sharedMaterial = new Material(sh) { name = "MAT_Baliza_Servidores_Z2" };
+
+        GameObject goLuz = new GameObject("Luz_Pantalla_Z2");
+        goLuz.transform.SetParent(transform, false);
+        goLuz.transform.localPosition = new Vector3(0f, 0.42f, -0.35f);
+        luzEstadoZ2 = goLuz.AddComponent<Light>();
+        luzEstadoZ2.type = LightType.Point;
+        luzEstadoZ2.range = 3.2f;
+        luzEstadoZ2.intensity = 1.15f;
+        luzEstadoZ2.shadows = LightShadows.None;
+        ActualizarIndicadorVisualZ2();
+    }
+
+    private void ActualizarIndicadorVisualZ2()
+    {
+        bool conEnergia = !requiereEnergia || (laboratorio != null && laboratorio.PuedeConsultarTerminal());
+        bool consultada = GameManager.Instance != null && GameManager.Instance.TieneCodigo(idCodigo);
+
+        if (!conEnergia)
+        {
+            mensajePrompt = "Terminal de Servidores (Sin corriente) — Primero restaura la energía en el sector Norte";
+        }
+        else if (consultada)
+        {
+            mensajePrompt = $"SISTEMA RESTAURADO — Compuerta desbloqueada con código {codigoVisible} (E para ver terminal)";
+        }
+        else
+        {
+            mensajePrompt = $"Presiona E — Terminal de Servidores: Desbloquear compuerta de salida (Código {codigoVisible})";
+        }
+
+        Color c = !conEnergia
+            ? new Color(0.95f, 0.24f, 0.14f)
+            : (consultada ? new Color(0.18f, 0.95f, 0.54f) : new Color(0.18f, 0.88f, 1f));
+
+        if (luzEstadoZ2 != null)
+            luzEstadoZ2.color = c;
+
+        AplicarColor(ledEstadoZ2, c);
+        AplicarColor(rendererBalizaZ2, c);
+    }
+
+    private static void AplicarColor(Renderer r, Color c)
+    {
+        if (r == null || r.sharedMaterial == null) return;
+        Material mat = r.sharedMaterial;
+        mat.color = c;
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c);
+        mat.EnableKeyword("_EMISSION");
+        if (mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", c * 1.9f);
     }
 
     public override void Interactuar()
@@ -33,7 +182,9 @@ public class Terminal : Interactable
             (laboratorio == null || !laboratorio.PuedeConsultarTerminal()))
         {
             if (UIManager.Instance != null)
-                UIManager.Instance.MostrarMensaje("La terminal no tiene energía. Acciona el interruptor");
+                UIManager.Instance.MostrarMensaje(
+                    "<color=#FFAD3B><b>TERMINAL SIN CORRIENTE:</b></color> Dirígete al Terminal de Energía (Norte) para restaurar los circuitos.",
+                    3.2f);
             return;
         }
 
@@ -42,11 +193,18 @@ public class Terminal : Interactable
 
         if (EsTerminalDeRecepcion())
         {
-            // Las partidas anteriores que ya tenian el codigo no repiten la reparacion.
             if (juego.ObjetivoCompletado(objetivoReparacionZ1))
                 juego.AgregarCodigo(idCodigo);
             ActualizarPantalla();
             if (panelReparacion != null) panelReparacion.Abrir(this);
+            return;
+        }
+
+        if (panelServidorZ2 != null)
+        {
+            if (juego.TieneCodigo(idCodigo))
+                panelServidorZ2.MarcarCompletadoExternamente(true);
+            panelServidorZ2.Abrir();
             return;
         }
 
@@ -82,7 +240,6 @@ public class Terminal : Interactable
         return "";
     }
 
-    // La tecla equivocada no modifica la pila ni entrega el codigo.
     public bool ProcesarModulo(string letra)
     {
         GameManager juego = GameManager.Instance;
@@ -95,7 +252,6 @@ public class Terminal : Interactable
         }
         else
         {
-            // El ultimo modulo retirado es el primero que se instala.
             juego.modulosTerminalZ1.Pop();
             if (juego.modulosTerminalZ1.Count == 0)
             {

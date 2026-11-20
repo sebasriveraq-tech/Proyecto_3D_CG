@@ -6,7 +6,13 @@ using UnityEngine.UI;
 /// Panel de reparacion de la terminal de recepcion. Se controla con el teclado.
 public class PanelTerminalZ1 : MonoBehaviour
 {
-    public static bool Abierto { get; private set; }
+    private static bool abiertoZ1;
+    public static bool AbiertoZ2 { get; set; }
+    public static bool Abierto
+    {
+        get => abiertoZ1 || AbiertoZ2;
+        private set => abiertoZ1 = value;
+    }
 
     private Terminal terminal;
     private GameObject panel;

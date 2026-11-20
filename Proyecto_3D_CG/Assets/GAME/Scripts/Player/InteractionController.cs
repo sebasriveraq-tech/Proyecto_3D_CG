@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -29,8 +30,13 @@ public class InteractionController : MonoBehaviour
 
     private void Update()
     {
-        // Si el juego esta en pausa o el panel de reparacion esta abierto, no se interactua.
-        if (Time.timeScale == 0f || PanelTerminalZ1.Abierto) return;
+        // Si el juego esta en pausa, el panel de reparacion esta abierto o el jugador esta dentro de un armario,
+        // el propio sistema activo controla la interfaz.
+        if (Time.timeScale == 0f || PanelTerminalZ1.Abierto || ArmarioEscondite.JugadorOculto)
+        {
+            objetivoActual = null;
+            return;
+        }
 
         DetectarObjeto();
 
@@ -48,13 +54,50 @@ public class InteractionController : MonoBehaviour
 
         if (camara != null)
         {
-            // El rayo sale del centro de la camara hacia adelante.
-            Ray rayo = new Ray(camara.position, camara.forward);
-            RaycastHit golpe;
+            // En tercera persona la camara se ubica detras del personaje; compensamos esa distancia
+            // y filtramos el propio CharacterController del jugador para que no bloquee el rayo.
+            Vector3 referenciaOjos = transform.position + Vector3.up * 1.55f;
+            float offsetTerceraPersona = Mathf.Max(0f, Vector3.Dot(referenciaOjos - camara.position, camara.forward));
+            float distanciaEfectiva = distancia + offsetTerceraPersona;
 
-            // SphereCast: un rayo con grosor. Si la camara apunta cerca del objeto, lo detecta igual.
-            if (Physics.SphereCast(rayo, grosorRayo, out golpe, distancia, ~0, QueryTriggerInteraction.Ignore))
-                nuevoObjetivo = golpe.collider.GetComponentInParent<Interactable>();
+            Ray rayo = new Ray(camara.position, camara.forward);
+
+            // 1) Primero priorizamos el impacto directo en la mira central.
+            RaycastHit[] impactosDirectos = Physics.RaycastAll(
+                rayo, distanciaEfectiva, ~0, QueryTriggerInteraction.Ignore);
+            Array.Sort(impactosDirectos, (a, b) => a.distance.CompareTo(b.distance));
+
+            for (int i = 0; i < impactosDirectos.Length; i++)
+            {
+                Collider col = impactosDirectos[i].collider;
+                if (col == null || col.transform.IsChildOf(transform)) continue;
+
+                Interactable candidato = col.GetComponentInParent<Interactable>();
+                if (candidato != null && candidato.PuedeInteractuar(transform))
+                    nuevoObjetivo = candidato;
+                break; // Si el primer obstaculo solido no es interactuable desde aqui, bloquea la linea de vision.
+            }
+
+            // 2) Si el rayo fino no toco un interactuable, usamos SphereCast filtrando al propio jugador.
+            if (nuevoObjetivo == null)
+            {
+                RaycastHit[] impactosEsfera = Physics.SphereCastAll(
+                    rayo, grosorRayo, distanciaEfectiva, ~0, QueryTriggerInteraction.Ignore);
+                Array.Sort(impactosEsfera, (a, b) => a.distance.CompareTo(b.distance));
+
+                for (int i = 0; i < impactosEsfera.Length; i++)
+                {
+                    Collider col = impactosEsfera[i].collider;
+                    if (col == null || col.transform.IsChildOf(transform)) continue;
+
+                    Interactable candidato = col.GetComponentInParent<Interactable>();
+                    if (candidato != null && candidato.PuedeInteractuar(transform))
+                    {
+                        nuevoObjetivo = candidato;
+                        break;
+                    }
+                }
+            }
         }
 
         // Solo se actualiza la interfaz cuando el objetivo cambia.

@@ -12,6 +12,7 @@ public class UIManager : MonoBehaviour
     public GameObject panelHUD;
     public GameObject panelMenu;
     public GameObject panelComoJugar;
+    public GameObject panelAjustes;
     public GameObject panelPausa;
     public GameObject panelInventario;
     public GameObject panelVictoria;
@@ -44,6 +45,7 @@ public class UIManager : MonoBehaviour
     private Coroutine rutinaMensaje;
     private Coroutine rutinaTransicionVida;
     private Coroutine rutinaPulsoDanio;
+    private Coroutine rutinaTransicionPanel;
     private bool vidaInicializada;
     private int vidaAnterior;
     private float proporcionVida = 1f;
@@ -60,6 +62,9 @@ public class UIManager : MonoBehaviour
         if (fondoPrompt != null) fondoPrompt.SetActive(false);
         if (barraVida != null) escalaBaseBarra = barraVida.rectTransform.localScale;
         if (textoVida != null) escalaBaseTexto = textoVida.rectTransform.localScale;
+
+        AjustesUI ajustes = GetComponent<AjustesUI>();
+        if (ajustes != null) ajustes.Inicializar();
     }
 
     private void LateUpdate()
@@ -108,11 +113,39 @@ public class UIManager : MonoBehaviour
         if (panelHUD != null) panelHUD.SetActive(false);
         if (panelMenu != null) panelMenu.SetActive(false);
         if (panelComoJugar != null) panelComoJugar.SetActive(false);
+        if (panelAjustes != null) panelAjustes.SetActive(false);
         if (panelPausa != null) panelPausa.SetActive(false);
         if (panelInventario != null) panelInventario.SetActive(false);
         if (panelVictoria != null) panelVictoria.SetActive(false);
         if (panelDerrota != null) panelDerrota.SetActive(false);
-        if (panel != null) panel.SetActive(true);
+        if (panel != null)
+        {
+            panel.SetActive(true);
+            if (panel != panelHUD && isActiveAndEnabled)
+            {
+                if (rutinaTransicionPanel != null) StopCoroutine(rutinaTransicionPanel);
+                rutinaTransicionPanel = StartCoroutine(TransicionarEntradaPanel(panel));
+            }
+        }
+    }
+
+    private IEnumerator TransicionarEntradaPanel(GameObject panel)
+    {
+        if (panel == null) yield break;
+        CanvasGroup cg = panel.GetComponent<CanvasGroup>();
+        if (cg == null) cg = panel.AddComponent<CanvasGroup>();
+
+        float duracion = 0.16f;
+        float t = 0f;
+        cg.alpha = 0f;
+        while (t < duracion && panel != null && panel.activeSelf)
+        {
+            t += Time.unscaledDeltaTime;
+            cg.alpha = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / duracion));
+            yield return null;
+        }
+        if (cg != null) cg.alpha = 1f;
+        rutinaTransicionPanel = null;
     }
 
     public void MostrarHUD()        { MostrarSolo(panelHUD); }
@@ -120,6 +153,7 @@ public class UIManager : MonoBehaviour
     // El menu principal y su ayuda se manejan con el mouse: el cursor debe verse.
     public void MostrarMenu()
     {
+        PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarSolo(panelMenu);
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -132,18 +166,32 @@ public class UIManager : MonoBehaviour
         Cursor.visible = true;
     }
 
-    public void MostrarPausa()      { MostrarSolo(panelPausa); }
+    public void MostrarAjustes()
+    {
+        MostrarSolo(panelAjustes);
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+
+    public void MostrarPausa()
+    {
+        PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
+        MostrarSolo(panelPausa);
+    }
+
     public void MostrarInventario() { MostrarSolo(panelInventario); }
 
     // Los paneles finales tienen botones: se congela el juego y se libera el mouse para poder pulsarlos.
     public void MostrarVictoria()
     {
+        PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarSolo(panelVictoria);
         CongelarParaBoton();
     }
 
     public void MostrarDerrota()
     {
+        PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarSolo(panelDerrota);
         CongelarParaBoton();
     }
