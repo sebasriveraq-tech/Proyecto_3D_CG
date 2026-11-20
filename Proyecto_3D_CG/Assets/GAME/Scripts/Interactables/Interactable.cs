@@ -19,6 +19,12 @@ public abstract class Interactable : MonoBehaviour
         LabAudioFeedback.ReproducirInteraccion(transform.position, gameObject.name);
     }
 
+    // Permite validar si el interactuable acepta interacción desde la posición/orientación actual del jugador.
+    public virtual bool PuedeInteractuar(Transform origenJugador)
+    {
+        return true;
+    }
+
     // Cada objeto dice que pasa cuando el jugador presiona E.
     public abstract void Interactuar();
 }

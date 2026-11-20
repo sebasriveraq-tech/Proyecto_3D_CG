@@ -11,6 +11,13 @@ public class ControlPaneles : MonoBehaviour
         // Sin teclado o sin Canvas no hay nada que hacer.
         if (Keyboard.current == null || UIManager.Instance == null) return;
 
+        // Con el panel de ajustes abierto, ESC vuelve al menu anterior (Menu Principal o Pausa).
+        if (UIManager.Instance.panelAjustes != null && UIManager.Instance.panelAjustes.activeSelf)
+        {
+            if (Keyboard.current.escapeKey.wasPressedThisFrame) CerrarAjustes();
+            return;
+        }
+
         // Con la ayuda abierta, ESC vuelve al menu principal.
         if (UIManager.Instance.panelComoJugar != null && UIManager.Instance.panelComoJugar.activeSelf)
         {
@@ -88,12 +95,44 @@ public class ControlPaneles : MonoBehaviour
 
     public void BotonComoJugar()
     {
+        if (GameSettingsManager.Instance != null) GameSettingsManager.Instance.ReproducirFeedbackUI();
         if (UIManager.Instance != null) UIManager.Instance.MostrarComoJugar();
     }
 
     public void CerrarComoJugar()
     {
+        if (GameSettingsManager.Instance != null) GameSettingsManager.Instance.ReproducirFeedbackUI();
         if (UIManager.Instance != null) UIManager.Instance.MostrarMenu();
+    }
+
+    public void BotonAjustesMenu()
+    {
+        if (GameSettingsManager.Instance != null) GameSettingsManager.Instance.ReproducirFeedbackUI();
+        AjustesUI ajustes = AjustesUI.Instance != null ? AjustesUI.Instance : GetComponent<AjustesUI>();
+        if (ajustes != null)
+            ajustes.AbrirAjustes(false);
+    }
+
+    public void BotonAjustesPausa()
+    {
+        if (GameSettingsManager.Instance != null) GameSettingsManager.Instance.ReproducirFeedbackUI();
+        AjustesUI ajustes = AjustesUI.Instance != null ? AjustesUI.Instance : GetComponent<AjustesUI>();
+        if (ajustes != null)
+            ajustes.AbrirAjustes(true);
+    }
+
+    public void CerrarAjustes()
+    {
+        if (AjustesUI.Instance != null)
+            AjustesUI.Instance.CerrarAjustes();
+        else if (UIManager.Instance != null)
+            UIManager.Instance.MostrarMenu();
+    }
+
+    public void BotonReanudar()
+    {
+        if (GameSettingsManager.Instance != null) GameSettingsManager.Instance.ReproducirFeedbackUI();
+        Reanudar();
     }
 
     public void BotonSalir()
@@ -113,6 +152,7 @@ public class ControlPaneles : MonoBehaviour
     // DERROTA: vuelve al ultimo checkpoint y recarga la zona con vida completa.
     public void Reintentar()
     {
+        PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         Time.timeScale = 1f;   // el juego se congelo al mostrar el panel; hay que devolver el tiempo
 
         if (GameManager.Instance != null)
@@ -124,6 +164,7 @@ public class ControlPaneles : MonoBehaviour
     // VICTORIA: empieza una partida limpia desde la Zona 1.
     public void JugarDeNuevo()
     {
+        PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         Time.timeScale = 1f;
         IniciarPartidaNueva();
     }
@@ -131,6 +172,7 @@ public class ControlPaneles : MonoBehaviour
     // Los dos paneles: vuelve al menu principal.
     public void VolverAlMenu()
     {
+        PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.None;   // el menu principal usa el mouse
         Cursor.visible = true;
