@@ -9,16 +9,18 @@ using UnityEngine;
 /// NO guarda copia del estado global (vida, inventario, progreso): eso vive en el GameManager.
 public class Scene3Controller : MonoBehaviour
 {
-    [Header("Códigos requeridos (IDs de los Recogibles de código)")]
     [Header("Código aleatorio")]
     public TMP_Text textoCodigoPapel;
-    [Tooltip("Ej: codigo_energia. Deben coincidir con el Id Item del Recogible.")]
-    public List<string> codigosRequeridos = new List<string>();
+    private List<string> codigosRequeridos = new List<string>();
 
     [Header("Luces: todas apagadas hasta restaurar la energía")]
     public bool apagarTodasAlInicio = true;
     [Tooltip("Luces que NO se apagan (ej. linterna del jugador).")]
     public Light[] lucesExcluidas;
+
+    [Header("Ambiente (luz ambiental y reflejos)")]
+    public Color ambienteApagado = Color.black;
+    public Color ambienteEncendido = new Color(0.25f, 0.25f, 0.28f);
 
     [Header("Efectos al restaurar la energía")]
     public ParticleSystem[] particulasEnergia;
@@ -126,6 +128,10 @@ public class Scene3Controller : MonoBehaviour
 
     private void AplicarEstadoSinEnergia()
     {
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientLight = ambienteApagado;
+        RenderSettings.reflectionIntensity = 0f;
+
         energiaRestaurada = false;
 
         if (apagarTodasAlInicio)
@@ -149,6 +155,8 @@ public class Scene3Controller : MonoBehaviour
 
     private void RestaurarEnergia()
     {
+        RenderSettings.ambientLight = ambienteEncendido;
+        RenderSettings.reflectionIntensity = 1f;
         energiaRestaurada = true;
 
         // Cambio de estado de las luces: se encienden las que estaban encendidas originalmente

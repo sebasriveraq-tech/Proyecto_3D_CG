@@ -1233,6 +1233,11 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!108 &135020998 stripped
+Light:
+  m_CorrespondingSourceObject: {fileID: 10870732, guid: a6899fb2bdf074b849737fb13a5b2863, type: 3}
+  m_PrefabInstance: {fileID: 149596284}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &136755202 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 155272, guid: a6899fb2bdf074b849737fb13a5b2863, type: 3}
@@ -2118,9 +2123,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Scene3Controller
   textoCodigoPapel: {fileID: 2055255090}
-  codigosRequeridos: []
   apagarTodasAlInicio: 1
-  lucesExcluidas: []
+  lucesExcluidas:
+  - {fileID: 135020998}
+  - {fileID: 2001689038}
+  - {fileID: 1326192282}
+  ambienteApagado: {r: 0.20754719, g: 0.20010681, b: 0.20010681, a: 1}
+  ambienteEncendido: {r: 0.25, g: 0.25, b: 0.28, a: 1}
   particulasEnergia: []
   agentesAlRestaurar: []
   sonidoEnergia: {fileID: 0}
@@ -9531,6 +9540,11 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!108 &1326192282 stripped
+Light:
+  m_CorrespondingSourceObject: {fileID: 10881016, guid: 031729a7ef10c4aa1b5e0060c2f63acd, type: 3}
+  m_PrefabInstance: {fileID: 1479231435}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1329459564 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 169096, guid: a6899fb2bdf074b849737fb13a5b2863, type: 3}
@@ -15206,6 +15220,11 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!108 &2001689038 stripped
+Light:
+  m_CorrespondingSourceObject: {fileID: 10882792, guid: a6899fb2bdf074b849737fb13a5b2863, type: 3}
+  m_PrefabInstance: {fileID: 149596284}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &2002952605 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 400002, guid: 0fa0f7adcd5084445ad2d722cecf73f2, type: 3}
