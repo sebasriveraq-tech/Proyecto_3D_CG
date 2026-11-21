@@ -156,6 +156,7 @@ public class UIManager : MonoBehaviour
     public void MostrarMenu()
     {
         PanelTeclado.CerrarPanelActivoPorEventoExterno();
+        PanelTerminalZ1.CerrarPanelActivoPorEventoExterno();
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarSolo(panelMenu);
         Cursor.lockState = CursorLockMode.None;
@@ -179,6 +180,7 @@ public class UIManager : MonoBehaviour
     public void MostrarPausa()
     {
         PanelTeclado.CerrarPanelActivoPorEventoExterno();
+        PanelTerminalZ1.CerrarPanelActivoPorEventoExterno();
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarSolo(panelPausa);
     }
@@ -194,6 +196,7 @@ public class UIManager : MonoBehaviour
     public void MostrarVictoria()
     {
         PanelTeclado.CerrarPanelActivoPorEventoExterno();
+        PanelTerminalZ1.CerrarPanelActivoPorEventoExterno();
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarSolo(panelVictoria);
         CongelarParaBoton();
@@ -202,6 +205,7 @@ public class UIManager : MonoBehaviour
     public void MostrarDerrota()
     {
         PanelTeclado.CerrarPanelActivoPorEventoExterno();
+        PanelTerminalZ1.CerrarPanelActivoPorEventoExterno();
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarSolo(panelDerrota);
         CongelarParaBoton();

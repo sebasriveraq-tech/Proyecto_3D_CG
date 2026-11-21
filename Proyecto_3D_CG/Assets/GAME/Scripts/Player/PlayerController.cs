@@ -33,6 +33,8 @@ public class PlayerController : MonoBehaviour
     {
         controlador = GetComponent<CharacterController>();
 
+        if (camara != null) gameObject.AddComponent<AgitacionPorAgente>().Inicializar(camara);
+
         if (GameSettingsManager.Instance != null)
             sensibilidadMouse = GameSettingsManager.Instance.sensibilidadMouse;
 

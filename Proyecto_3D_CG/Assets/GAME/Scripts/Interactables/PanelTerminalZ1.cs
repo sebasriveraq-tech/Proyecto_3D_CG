@@ -6,13 +6,9 @@ using UnityEngine.UI;
 /// Panel de reparacion de la terminal de recepcion. Se controla con el teclado.
 public class PanelTerminalZ1 : MonoBehaviour
 {
-    private static bool abiertoZ1;
+    private static PanelTerminalZ1 panelActivoZ1;
     public static bool AbiertoZ2 { get; set; }
-    public static bool Abierto
-    {
-        get => abiertoZ1 || AbiertoZ2;
-        private set => abiertoZ1 = value;
-    }
+    public static bool Abierto => panelActivoZ1 != null || AbiertoZ2;
 
     private Terminal terminal;
     private GameObject panel;
@@ -23,7 +19,6 @@ public class PanelTerminalZ1 : MonoBehaviour
     private Image tarjetaA;
     private Image tarjetaB;
     private Image tarjetaC;
-    private float tiempoAnterior;
     private CursorLockMode bloqueoAnterior;
     private bool cursorAnterior;
 
@@ -41,19 +36,17 @@ public class PanelTerminalZ1 : MonoBehaviour
         if (panel == null) CrearPanel();
         if (panel == null) return;
 
-        Abierto = true;
-        tiempoAnterior = Time.timeScale;
+        panelActivoZ1 = this;
         bloqueoAnterior = Cursor.lockState;
         cursorAnterior = Cursor.visible;
-        Time.timeScale = 0f;
         panel.SetActive(true);
         if (UIManager.Instance != null) UIManager.Instance.OcultarPrompt();
         ActualizarPanel("");
     }
 
-    private void Update()
+    private void LateUpdate()
     {
-        if (!Abierto || panel == null || !panel.activeSelf || Keyboard.current == null) return;
+        if (panelActivoZ1 != this || !PanelActivo || Keyboard.current == null) return;
         Keyboard teclado = Keyboard.current;
         if (teclado.escapeKey.wasPressedThisFrame)
         {
@@ -86,21 +79,27 @@ public class PanelTerminalZ1 : MonoBehaviour
         return true;
     }
 
-    public void Cerrar()
+    public static void CerrarPanelActivoPorEventoExterno()
     {
-        if (!Abierto) return;
-        Abierto = false;
+        if (panelActivoZ1 != null) panelActivoZ1.Cerrar(false);
+    }
+
+    public void Cerrar() => Cerrar(true);
+
+    private void Cerrar(bool mostrarPrompt)
+    {
+        if (panelActivoZ1 != this) return;
+        panelActivoZ1 = null;
         if (panel != null) panel.SetActive(false);
-        Time.timeScale = tiempoAnterior;
         Cursor.lockState = bloqueoAnterior;
         Cursor.visible = cursorAnterior;
-        if (UIManager.Instance != null && terminal != null)
+        if (mostrarPrompt && UIManager.Instance != null && terminal != null)
             UIManager.Instance.MostrarPrompt(terminal.mensajePrompt);
     }
 
     private void OnDestroy()
     {
-        if (panel != null && panel.activeSelf && Abierto) Cerrar();
+        Cerrar(false);
         if (panel != null) Destroy(panel);
     }
 

@@ -22689,6 +22689,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1879999930}
   - component: {fileID: 1879999929}
+  - component: {fileID: 1879999931}
   m_Layer: 0
   m_Name: LaboratorioController_Zona2
   m_TagString: Untagged
@@ -22696,6 +22697,21 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!114 &1879999931
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1879999928}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4981e95734f4fd6af305b5d0f635155, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::AudioAgenteZ1
+  agente: {fileID: 1762627171}
+  radioAcercamiento: {fileID: 8300000, guid: f24bfb12a40748309087df42cd294150, type: 3}
+  musicaPersecucion: {fileID: 8300000, guid: 48c4aa839c2c4a3989e9333760ec090f, type: 3}
 --- !u!114 &1879999929
 MonoBehaviour:
   m_ObjectHideFlags: 0

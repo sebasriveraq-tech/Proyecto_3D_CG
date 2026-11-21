@@ -1230,6 +1230,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: PS_Brillo_Credencial
       objectReference: {fileID: 0}
+    - target: {fileID: 1829439602296901551, guid: 3324ba4f9504cff4da58731c4a6c7b33, type: 3}
+      propertyPath: InitialModule.startSizeY.minMaxState
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 1829439602296901551, guid: 3324ba4f9504cff4da58731c4a6c7b33, type: 3}
+      propertyPath: InitialModule.startSizeZ.minMaxState
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 7908730829335709260, guid: 3324ba4f9504cff4da58731c4a6c7b33, type: 3}
       propertyPath: m_LocalScale.x
       value: 2.5
@@ -1244,7 +1252,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7908730829335709260, guid: 3324ba4f9504cff4da58731c4a6c7b33, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: -1.26
       objectReference: {fileID: 0}
     - target: {fileID: 7908730829335709260, guid: 3324ba4f9504cff4da58731c4a6c7b33, type: 3}
       propertyPath: m_LocalPosition.y
@@ -1252,7 +1260,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7908730829335709260, guid: 3324ba4f9504cff4da58731c4a6c7b33, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 1.693
       objectReference: {fileID: 0}
     - target: {fileID: 7908730829335709260, guid: 3324ba4f9504cff4da58731c4a6c7b33, type: 3}
       propertyPath: m_LocalRotation.w
@@ -6055,6 +6063,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ArmarioEscondite
   mensajePrompt: Presiona E para abrir o cerrar el armario
   bisagra: {fileID: 1933410243}
+  puntoInterno: {fileID: 0}
+  puntoExterno: {fileID: 0}
   anguloApertura: -105
   duracion: 0.9
 --- !u!1 &646831587
@@ -6201,6 +6211,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ArmarioEscondite
   mensajePrompt: Presiona E para abrir o cerrar el armario
   bisagra: {fileID: 1862147566}
+  puntoInterno: {fileID: 0}
+  puntoExterno: {fileID: 0}
   anguloApertura: -105
   duracion: 0.9
 --- !u!1001 &677095539
@@ -13558,6 +13570,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ArmarioEscondite
   mensajePrompt: Presiona E para abrir o cerrar el armario
   bisagra: {fileID: 836696388}
+  puntoInterno: {fileID: 0}
+  puntoExterno: {fileID: 0}
   anguloApertura: -105
   duracion: 0.9
 --- !u!1 &1622158492
@@ -15346,6 +15360,7 @@ GameObject:
   - component: {fileID: 1789924955}
   - component: {fileID: 1789924954}
   - component: {fileID: 1789924953}
+  - component: {fileID: 1789924956}
   m_Layer: 0
   m_Name: Ambiente_Emergencia_Z1
   m_TagString: Untagged
@@ -15353,6 +15368,21 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!114 &1789924956
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1789924952}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4981e95734f4fd6af305b5d0f635155, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::AudioAgenteZ1
+  agente: {fileID: 641601480}
+  radioAcercamiento: {fileID: 8300000, guid: f24bfb12a40748309087df42cd294150, type: 3}
+  musicaPersecucion: {fileID: 8300000, guid: 48c4aa839c2c4a3989e9333760ec090f, type: 3}
 --- !u!114 &1789924953
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15378,7 +15408,9 @@ MonoBehaviour:
   intensidadMaxima: 1.6
   pulsosPorSegundo: 0.65
   luzDireccional: {fileID: 410087040}
+  intensidadRelleno: 0.24
   intensidadDireccionalMaxima: 0.08
+  luzAmbienteMinima: {r: 0.055, g: 0.055, b: 0.055, a: 1}
   luzAmbienteMaxima: {r: 0.12, g: 0.025, b: 0.02, a: 1}
 --- !u!82 &1789924954
 AudioSource:
@@ -18200,7 +18232,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7000000000000000101, guid: f1a2b3c4d5e647888899aabbccddee01, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -13.55
+      value: 4.14
       objectReference: {fileID: 0}
     - target: {fileID: 7000000000000000101, guid: f1a2b3c4d5e647888899aabbccddee01, type: 3}
       propertyPath: m_LocalPosition.y
@@ -18208,35 +18240,35 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7000000000000000101, guid: f1a2b3c4d5e647888899aabbccddee01, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -5.088
+      value: -7.53
       objectReference: {fileID: 0}
     - target: {fileID: 7000000000000000101, guid: f1a2b3c4d5e647888899aabbccddee01, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0
+      value: 0.70567065
       objectReference: {fileID: 0}
     - target: {fileID: 7000000000000000101, guid: f1a2b3c4d5e647888899aabbccddee01, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0.0021648663
       objectReference: {fileID: 0}
     - target: {fileID: 7000000000000000101, guid: f1a2b3c4d5e647888899aabbccddee01, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 1
+      value: 0.7085309
       objectReference: {fileID: 0}
     - target: {fileID: 7000000000000000101, guid: f1a2b3c4d5e647888899aabbccddee01, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
+      value: 0.0028962553
       objectReference: {fileID: 0}
     - target: {fileID: 7000000000000000101, guid: f1a2b3c4d5e647888899aabbccddee01, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
+      value: -0.41
       objectReference: {fileID: 0}
     - target: {fileID: 7000000000000000101, guid: f1a2b3c4d5e647888899aabbccddee01, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: 180
+      value: 90.232
       objectReference: {fileID: 0}
     - target: {fileID: 7000000000000000101, guid: f1a2b3c4d5e647888899aabbccddee01, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
+      value: 0.058
       objectReference: {fileID: 0}
     - target: {fileID: 7000000000000000103, guid: f1a2b3c4d5e647888899aabbccddee01, type: 3}
       propertyPath: m_Enabled

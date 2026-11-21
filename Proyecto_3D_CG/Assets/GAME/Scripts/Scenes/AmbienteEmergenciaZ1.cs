@@ -14,7 +14,9 @@ public class AmbienteEmergenciaZ1 : MonoBehaviour
     public float intensidadMaxima = 1.6f;
     public float pulsosPorSegundo = 0.65f;
     public Light luzDireccional;
+    [Min(0f)] public float intensidadRelleno = 0.24f;
     public float intensidadDireccionalMaxima = 0.08f;
+    public Color luzAmbienteMinima = new Color(0.11f, 0.11f, 0.11f);
     public Color luzAmbienteMaxima = new Color(0.12f, 0.025f, 0.02f);
 
     private bool alarmaPausada;
@@ -31,9 +33,15 @@ public class AmbienteEmergenciaZ1 : MonoBehaviour
             if (luz != null) luz.intensity = intensidad;
         }
 
-        // La luz blanca y el ambiente tambien bajan, sin tocar otras luces de la escena.
-        if (luzDireccional != null) luzDireccional.intensity = intensidadDireccionalMaxima * pulso;
-        RenderSettings.ambientLight = luzAmbienteMaxima * pulso;
+        if (luzDireccional != null)
+        {
+            // El techo no debe bloquear la luz de relleno de Recepción.
+            luzDireccional.shadows = LightShadows.None;
+            luzDireccional.intensity = intensidadRelleno + intensidadDireccionalMaxima * pulso;
+        }
+
+        // El pulso suma un tono rojo a la luz ambiental base.
+        RenderSettings.ambientLight = luzAmbienteMinima + luzAmbienteMaxima * pulso;
         RenderSettings.reflectionIntensity = 0.25f * pulso;
 
         if (alarma == null) return;

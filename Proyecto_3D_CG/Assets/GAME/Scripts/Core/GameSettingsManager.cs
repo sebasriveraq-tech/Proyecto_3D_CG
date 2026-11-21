@@ -128,7 +128,7 @@ public class GameSettingsManager : MonoBehaviour
         if (esMenu)
         {
             if (fuenteAmbienteMenu.clip == null)
-                fuenteAmbienteMenu.clip = LabAudioFeedback.ObtenerAmbiente();
+                fuenteAmbienteMenu.clip = Resources.Load<AudioClip>("Musica_Menu");
 
             if (fuenteAmbienteMenu.clip != null && !fuenteAmbienteMenu.isPlaying)
                 fuenteAmbienteMenu.Play();
