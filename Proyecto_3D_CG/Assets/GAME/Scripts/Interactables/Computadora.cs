@@ -6,7 +6,9 @@ public class Computadora : Interactable
 {
     [Header("Escena")]
     public Scene3Controller controlador;
-    [Tooltip("Cantidad de dígitos del código (11212 = 5)")]
+    [Tooltip("0 = energía de la sala, 1 = energía de las puertas, 2 = salida final")]
+    public int etapa = 0;
+    [Tooltip("Cantidad de dígitos del código (11221 = 5)")]
     public int longitudCodigo = 5;
 
     [Header("Bloquear al jugador mientras usa la computadora")]
@@ -38,7 +40,7 @@ public class Computadora : Interactable
 
     private bool ValidarCodigo(string codigo)
     {
-        bool aceptado = controlador.IntentarCodigo(codigo);
+        bool aceptado = controlador.IntentarCodigo(etapa, codigo);
         if (aceptado) usada = true;
         return aceptado;
     }

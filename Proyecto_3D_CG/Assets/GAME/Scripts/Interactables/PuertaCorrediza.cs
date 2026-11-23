@@ -8,7 +8,11 @@ public class PuertaCorrediza : Interactable
     [Header("Requisitos")]
     public string idItemRequerido = "credencial_z3";   // pon aquí el Id Item de tu credencial
     public bool requiereEnergia = true;
-    public Scene3Controller controlador;                // para saber si ya se encendieron las luces
+    [Tooltip("Etapa de código que debe estar completada: 0 = luces/sala, 1 = puertas, 2 = salida final")]
+    public int etapaRequerida = 0;
+    [Tooltip("Mensaje si no hay energía. Vacío = mensaje por defecto.")]
+    public string mensajeSinEnergia = "";
+    public Scene3Controller controlador;                // para saber si la etapa ya está completada
 
     [Header("Movimiento")]
     public Transform hojaPuerta;                                       // la hoja que se desliza
@@ -35,10 +39,15 @@ public class PuertaCorrediza : Interactable
     {
         if (abierta || enMovimiento) return;
 
-        // 1) Sin energía: primero hay que encontrar el código y encender las luces
-        if (requiereEnergia && controlador != null && !controlador.EnergiaRestaurada)
+        // 1) Sin energía: falta completar la etapa de código de esta puerta
+        if (requiereEnergia && controlador != null && !controlador.EtapaCompletada(etapaRequerida))
         {
-            Denegar("Primero debes encontrar el código y encender las luces");
+            string msg = !string.IsNullOrEmpty(mensajeSinEnergia)
+                ? mensajeSinEnergia
+                : (etapaRequerida == 0
+                    ? "Primero debes encontrar el código y encender las luces"
+                    : "Esta puerta no tiene energía. Encuentra el código para restaurarla");
+            Denegar(msg);
             return;
         }
 
