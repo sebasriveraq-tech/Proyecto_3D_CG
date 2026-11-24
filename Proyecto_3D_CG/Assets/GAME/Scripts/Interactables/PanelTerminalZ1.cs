@@ -121,7 +121,7 @@ public class PanelTerminalZ1 : MonoBehaviour
         if (terminal.ReparacionTerminada())
         {
             titulo.text = "SISTEMA RESTABLECIDO";
-            estado.text = "<color=#79F5AD>●  TERMINAL OPERATIVA</color>";
+            estado.text = "<color=#79F5AD>•  TERMINAL OPERATIVA</color>";
             instrucciones.text = "CÓDIGO DE ACCESO\n<color=#85FFB8><size=145%><b>" + terminal.codigoVisible + "</b></size></color>";
             mensaje.text = "Código disponible. Presiona ESC para cerrar.";
             CambiarTarjetas("");
@@ -132,13 +132,13 @@ public class PanelTerminalZ1 : MonoBehaviour
         bool retirando = juego.cantidadModulosRetiradosZ1 < 3;
         estado.text = retirando ? "<color=#FFD17A>01  /  RETIRAR MÓDULOS</color>" : "<color=#78E6F2>02  /  REINSTALAR MÓDULOS</color>";
         instrucciones.text = retirando
-            ? "Retira los módulos en orden: <b>A → B → C</b>"
-            : "Instala primero el último que retiraste: <b>C → B → A</b>";
+            ? "Retira los módulos en orden: <b>A -> B -> C</b>"
+            : "Instala primero el último que retiraste: <b>C -> B -> A</b>";
         string contenido = "";
         foreach (string modulo in juego.modulosTerminalZ1)
-            contenido += (contenido == "" ? "" : "   →   ") + modulo;
+            contenido += (contenido == "" ? "" : "   ->   ") + modulo;
         if (contenido == "") contenido = "VACÍA";
-        mensaje.text = "PILA  /  CIMA → FONDO:  <b>" + contenido + "</b>\n" + resultado;
+        mensaje.text = "PILA  /  CIMA -> FONDO:  <b>" + contenido + "</b>\n" + resultado;
         CambiarTarjetas(terminal.SiguienteModulo());
     }
 

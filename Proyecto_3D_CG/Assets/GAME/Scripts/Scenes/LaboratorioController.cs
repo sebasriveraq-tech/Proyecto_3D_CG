@@ -92,35 +92,25 @@ public class LaboratorioController : MonoBehaviour
         audioAmbiente.playOnAwake = false;
         audioAmbiente.spatialBlend = 0f;
         audioAmbiente.mute = false;
-        float volBaseAmbiente = audioAmbiente.volume > 0.01f ? audioAmbiente.volume : 0.22f;
+        float volBaseAmbiente = audioAmbiente.volume > 0.01f ? audioAmbiente.volume : 0.32f;
         audioAmbiente.volume = volBaseAmbiente;
         cfg.RegistrarFuenteConVolumenBase(audioAmbiente, volBaseAmbiente);
 
         if (audioAlarmaEmergencia == null)
         {
             Transform hijoAlarma = transform.Find("Audio_Alarma_Emergencia_Z2");
-            if (hijoAlarma == null)
-            {
-                GameObject goAlarma = new GameObject("Audio_Alarma_Emergencia_Z2");
-                goAlarma.transform.SetParent(transform, false);
-                audioAlarmaEmergencia = goAlarma.AddComponent<AudioSource>();
-            }
-            else
-            {
-                audioAlarmaEmergencia = hijoAlarma.GetComponent<AudioSource>() ?? hijoAlarma.gameObject.AddComponent<AudioSource>();
-            }
+            if (hijoAlarma != null)
+                audioAlarmaEmergencia = hijoAlarma.GetComponent<AudioSource>();
         }
 
-        if (audioAlarmaEmergencia.clip == null)
-            audioAlarmaEmergencia.clip = LabAudioFeedback.ObtenerAlarmaEmergenciaElectricaZ2();
-        audioAlarmaEmergencia.enabled = true;
-        audioAlarmaEmergencia.loop = true;
-        audioAlarmaEmergencia.playOnAwake = true;
-        audioAlarmaEmergencia.spatialBlend = 0f;
-        audioAlarmaEmergencia.mute = false;
-        const float volBaseEmergencia = 0.30f;
-        audioAlarmaEmergencia.volume = volBaseEmergencia;
-        cfg.RegistrarFuenteConVolumenBase(audioAlarmaEmergencia, volBaseEmergencia);
+        if (audioAlarmaEmergencia != null)
+        {
+            audioAlarmaEmergencia.Stop();
+            audioAlarmaEmergencia.loop = false;
+            audioAlarmaEmergencia.playOnAwake = false;
+            audioAlarmaEmergencia.volume = 0f;
+            audioAlarmaEmergencia.enabled = false;
+        }
     }
 
     private void Start()
@@ -152,8 +142,6 @@ public class LaboratorioController : MonoBehaviour
 
         if (audioAmbiente != null && !audioAmbiente.isPlaying)
             audioAmbiente.Play();
-        if (audioAlarmaEmergencia != null && !audioAlarmaEmergencia.isPlaying)
-            audioAlarmaEmergencia.Play();
 
         if (UIManager.Instance != null)
             UIManager.Instance.MostrarMensaje(
@@ -190,13 +178,12 @@ public class LaboratorioController : MonoBehaviour
     {
         if (Time.timeScale == 0f && !alarmaPausadaPorTiempo)
         {
-            if (audioAlarmaEmergencia != null) audioAlarmaEmergencia.Pause();
+            if (audioAlarmaEmergencia != null && audioAlarmaEmergencia.isPlaying) audioAlarmaEmergencia.Pause();
             if (audioAmbiente != null) audioAmbiente.Pause();
             alarmaPausadaPorTiempo = true;
         }
         else if (Time.timeScale > 0f && alarmaPausadaPorTiempo)
         {
-            if (audioAlarmaEmergencia != null) audioAlarmaEmergencia.UnPause();
             if (audioAmbiente != null) audioAmbiente.UnPause();
             alarmaPausadaPorTiempo = false;
         }
@@ -451,15 +438,15 @@ public class LaboratorioController : MonoBehaviour
             ? "<color=#46E896>[OK]</color> <color=#B8DCE8>2. Servidores (Oeste): Compuerta desbloqueada</color>"
             : (energiaOK
                 ? "<color=#F4C452>[ ]</color>  <color=#EAF2F7>2. Servidores (Oeste): Descifrar secuencia (4 símbolos)</color>"
-                : "<color=#7E93A4>[ ]  2. Servidores (Oeste): Desbloquear compuerta (requiere energía)</color>");
+                : "<color=#B8CDD9>[ ]  2. Servidores (Oeste): Desbloquear compuerta (requiere energía)</color>");
 
         string l3 = credencialOK
             ? "<color=#46E896>[OK]</color> <color=#B8DCE8>3. Contención (Este): Credencial obtenida</color>"
-            : "<color=#D2E0EA>[ ]</color>  <color=#C6D6E2>3. Contención (Este): Recuperar credencial en el cofre</color>";
+            : "<color=#E2EEF5>[ ]</color>  <color=#E8F3FA>3. Contención (Este): Recuperar credencial en el cofre</color>";
 
         string l4 = (energiaOK && codigoOK && credencialOK)
             ? "<color=#46E896><b>[>>] 4. Salida (Norte): Cruzar hacia el Sector 3</b></color>"
-            : "<color=#7E93A4>[ ]  4. Salida (Norte): Abrir compuerta principal</color>";
+            : "<color=#B8CDD9>[ ]  4. Salida (Norte): Abrir compuerta principal</color>";
 
         textoObjetivoHUD.text = $"{l1}\n{l2}\n{l3}\n{l4}";
 
@@ -631,8 +618,6 @@ public class LaboratorioController : MonoBehaviour
         ActualizarIluminacion();
         if (chispasEnergia != null) chispasEnergia.Play();
         if (chispasEnergia != null) LabAudioFeedback.ReproducirDescarga(chispasEnergia.transform.position);
-        if (audioAlarmaEmergencia != null)
-            GameSettingsManager.GarantizarInstancia().RegistrarFuenteConVolumenBase(audioAlarmaEmergencia, 0.20f);
         if (GameManager.Instance != null)
             GameManager.Instance.CompletarObjetivo("energia_z2");
         ActualizarPanelObjetivosHUD(true);
@@ -646,8 +631,6 @@ public class LaboratorioController : MonoBehaviour
     {
         EnergiaRestaurada = false;
         ActualizarIluminacion();
-        if (audioAlarmaEmergencia != null)
-            GameSettingsManager.GarantizarInstancia().RegistrarFuenteConVolumenBase(audioAlarmaEmergencia, 0.30f);
         if (GameManager.Instance != null)
             GameManager.Instance.objetivos["energia_z2"] = false;
         ActualizarPanelObjetivosHUD(false);

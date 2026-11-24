@@ -77,28 +77,36 @@ public static class SaveManager
         return File.Exists(Ruta);
     }
 
-    public static void Guardar()
+    public static DatosGuardado CapturarEstadoActual(string escenaOverride = null)
     {
-        if (GameManager.Instance == null) return;
+        if (GameManager.Instance == null) return null;
 
+        GameManager gm = GameManager.Instance;
         DatosGuardado datos = new DatosGuardado();
-        datos.escenaActual = GameManager.Instance.escenaActual;
-        datos.vidaJugador = GameManager.Instance.vidaJugador;
-        datos.muertes = GameManager.Instance.muertes;
-        datos.tiempoJugadoSegundos = GameManager.Instance.tiempoJugadoSegundos;
-        datos.inventario = new List<string>(GameManager.Instance.inventario);
-        datos.codigos = new List<string>(GameManager.Instance.codigos);
+        datos.escenaActual = !string.IsNullOrEmpty(escenaOverride) ? escenaOverride : gm.escenaActual;
+        datos.vidaJugador = Mathf.Max(1, gm.vidaJugador);
+        datos.muertes = gm.muertes;
+        datos.tiempoJugadoSegundos = gm.tiempoJugadoSegundos;
+        datos.inventario = new List<string>(gm.inventario);
+        datos.codigos = new List<string>(gm.codigos);
 
         // La pila se guarda como lista, empezando por el modulo de arriba.
-        datos.modulosTerminalZ1 = new List<string>(GameManager.Instance.modulosTerminalZ1);
-        datos.cantidadModulosRetiradosZ1 = GameManager.Instance.cantidadModulosRetiradosZ1;
+        datos.modulosTerminalZ1 = new List<string>(gm.modulosTerminalZ1);
+        datos.cantidadModulosRetiradosZ1 = gm.cantidadModulosRetiradosZ1;
 
         // Dictionary -> List<ParBool> (JsonUtility no serializa Dictionary).
-        foreach (KeyValuePair<string, bool> par in GameManager.Instance.puertas)
+        foreach (KeyValuePair<string, bool> par in gm.puertas)
             datos.puertas.Add(new ParBool { clave = par.Key, valor = par.Value });
 
-        foreach (KeyValuePair<string, bool> par in GameManager.Instance.objetivos)
+        foreach (KeyValuePair<string, bool> par in gm.objetivos)
             datos.objetivos.Add(new ParBool { clave = par.Key, valor = par.Value });
+
+        return datos;
+    }
+
+    public static void GuardarDatos(DatosGuardado datos)
+    {
+        if (datos == null) return;
 
         // true = JSON con saltos de linea, para poder leerlo con el Bloc de notas.
         string json = JsonUtility.ToJson(datos, true);
@@ -107,44 +115,62 @@ public static class SaveManager
         Debug.Log("Partida guardada en: " + Ruta);
     }
 
-    public static void Cargar()
+    public static void Guardar()
     {
-        if (GameManager.Instance == null) return;
-        if (!ExisteGuardado()) return;
+        DatosGuardado datos = CapturarEstadoActual();
+        GuardarDatos(datos);
+    }
+
+    public static DatosGuardado LeerDatos()
+    {
+        if (!ExisteGuardado()) return null;
 
         string json = File.ReadAllText(Ruta);
-        DatosGuardado datos = JsonUtility.FromJson<DatosGuardado>(json);
-        if (datos == null) return;
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        return JsonUtility.FromJson<DatosGuardado>(json);
+    }
 
-        GameManager.Instance.vidaJugador = datos.vidaJugador;
-        // Reintentar un checkpoint anterior conserva las muertes de la partida actual.
-        GameManager.Instance.muertes = Mathf.Max(GameManager.Instance.muertes, datos.muertes);
-        GameManager.Instance.tiempoJugadoSegundos = datos.tiempoJugadoSegundos;
-        GameManager.Instance.escenaActual = datos.escenaActual;
+    public static void AplicarDatos(DatosGuardado datos, bool conservarMuertes = true)
+    {
+        if (GameManager.Instance == null || datos == null) return;
 
-        // Se reconstruyen las List (si el JSON venia sin ese campo, queda vacia).
-        GameManager.Instance.inventario = datos.inventario ?? new List<string>();
-        GameManager.Instance.codigos = datos.codigos ?? new List<string>();
+        GameManager gm = GameManager.Instance;
+        gm.vidaJugador = datos.vidaJugador;
+        // Reintentar un checkpoint conserva las muertes acumuladas si corresponde.
+        gm.muertes = conservarMuertes ? Mathf.Max(gm.muertes, datos.muertes) : datos.muertes;
+        gm.tiempoJugadoSegundos = datos.tiempoJugadoSegundos;
+        gm.escenaActual = datos.escenaActual;
+
+        // Se reconstruyen las List nuevas para no compartir referencia con el snapshot.
+        gm.inventario = datos.inventario != null ? new List<string>(datos.inventario) : new List<string>();
+        gm.codigos = datos.codigos != null ? new List<string>(datos.codigos) : new List<string>();
 
         // Se agregan desde el fondo para conservar el mismo modulo arriba.
-        GameManager.Instance.modulosTerminalZ1.Clear();
+        gm.modulosTerminalZ1.Clear();
         if (datos.modulosTerminalZ1 != null)
             for (int i = datos.modulosTerminalZ1.Count - 1; i >= 0; i--)
-                GameManager.Instance.modulosTerminalZ1.Push(datos.modulosTerminalZ1[i]);
-        GameManager.Instance.cantidadModulosRetiradosZ1 = datos.cantidadModulosRetiradosZ1;
+                gm.modulosTerminalZ1.Push(datos.modulosTerminalZ1[i]);
+        gm.cantidadModulosRetiradosZ1 = datos.cantidadModulosRetiradosZ1;
 
         // Se reconstruyen las Dictionary a partir de la lista de parejas.
-        GameManager.Instance.puertas.Clear();
+        gm.puertas.Clear();
         if (datos.puertas != null)
             foreach (ParBool par in datos.puertas)
-                GameManager.Instance.puertas[par.clave] = par.valor;
+                gm.puertas[par.clave] = par.valor;
 
-        GameManager.Instance.objetivos.Clear();
+        gm.objetivos.Clear();
         if (datos.objetivos != null)
             foreach (ParBool par in datos.objetivos)
-                GameManager.Instance.objetivos[par.clave] = par.valor;
+                gm.objetivos[par.clave] = par.valor;
 
-        Debug.Log("Partida cargada desde: " + Ruta);
+        Debug.Log("Partida cargada desde checkpoint: " + datos.escenaActual);
+    }
+
+    public static void Cargar()
+    {
+        DatosGuardado datos = LeerDatos();
+        if (datos == null) return;
+        AplicarDatos(datos, true);
     }
 
     public static bool GuardarPuntuacion(ResultadoPartida resultado, out string ruta)

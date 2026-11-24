@@ -96,7 +96,7 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
     private readonly int[,] rotacionCelda = new int[3, 3];
     private readonly bool[,] celdaEnergizada = new bool[3, 3];
 
-    private static readonly string[] SimbolosDisponibles = { "Λ-1", "Δ-2", "Ω-3", "Φ-4", "Ψ-6", "Σ-8" };
+    private static readonly string[] SimbolosDisponibles = { "A-1", "B-2", "C-3", "D-4", "E-6", "F-8" };
     private static readonly int[] PatronObjetivo = { 1, 2, 5, 0 };
 
     private int pasoSimbolosActual;
@@ -607,8 +607,8 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
                     ? new Color(0.10f, 0.48f, 0.26f, 1f)
                     : new Color(0.14f, 0.20f, 0.26f, 0.98f);
                 indicadorSalidaTexto.text = completado
-                    ? "→ SALIDA\n<size=14>CORRIENTE 100%</size>"
-                    : "→ SALIDA\n<size=14>SIN CORRIENTE</size>";
+                    ? "-> SALIDA\n<size=14>CORRIENTE 100%</size>"
+                    : "-> SALIDA\n<size=14>SIN CORRIENTE</size>";
                 indicadorSalidaTexto.color = completado
                     ? new Color(0.45f, 1f, 0.68f)
                     : new Color(0.75f, 0.82f, 0.88f);
@@ -676,21 +676,21 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
                         if (vp.fondo != null) vp.fondo.color = new Color(0.08f, 0.42f, 0.22f, 1f);
                         if (vp.borde != null) vp.borde.effectColor = new Color(0.26f, 1f, 0.56f, 1f);
                         if (vp.textoSimbolo != null) vp.textoSimbolo.color = Color.white;
-                        if (vp.etiquetaEstado != null) { vp.etiquetaEstado.text = "✓ ACERTADO"; vp.etiquetaEstado.color = new Color(0.45f, 1f, 0.68f); }
+                        if (vp.etiquetaEstado != null) { vp.etiquetaEstado.text = "[OK] ACERTADO"; vp.etiquetaEstado.color = new Color(0.45f, 1f, 0.68f); }
                     }
                     else if (enError)
                     {
                         if (vp.fondo != null) vp.fondo.color = new Color(0.56f, 0.10f, 0.12f, 1f);
                         if (vp.borde != null) vp.borde.effectColor = new Color(1f, 0.30f, 0.30f, 1f);
                         if (vp.textoSimbolo != null) vp.textoSimbolo.color = Color.white;
-                        if (vp.etiquetaEstado != null) { vp.etiquetaEstado.text = "✗ ERROR"; vp.etiquetaEstado.color = new Color(1f, 0.70f, 0.70f); }
+                        if (vp.etiquetaEstado != null) { vp.etiquetaEstado.text = "[X] ERROR"; vp.etiquetaEstado.color = new Color(1f, 0.70f, 0.70f); }
                     }
                     else if (esActual)
                     {
                         if (vp.fondo != null) vp.fondo.color = new Color(0.07f, 0.24f, 0.38f, 1f);
                         if (vp.borde != null) vp.borde.effectColor = new Color(1f, 0.84f, 0.22f, 1f);
                         if (vp.textoSimbolo != null) vp.textoSimbolo.color = new Color(1f, 0.92f, 0.38f);
-                        if (vp.etiquetaEstado != null) { vp.etiquetaEstado.text = "▶ INGRESA ESTE"; vp.etiquetaEstado.color = new Color(1f, 0.88f, 0.36f); }
+                        if (vp.etiquetaEstado != null) { vp.etiquetaEstado.text = ">> INGRESA ESTE"; vp.etiquetaEstado.color = new Color(1f, 0.88f, 0.36f); }
                     }
                     else
                     {
@@ -747,13 +747,13 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
                 else if (tiempoFlashError > 0f)
                 {
                     fondoBannerEstado.color = new Color(0.54f, 0.10f, 0.12f, 0.98f);
-                    textoEstado.text = $"✗ SÍMBOLO INCORRECTO — Sigue el patrón marcado arriba (Paso {pasoVisible} / 4)";
+                    textoEstado.text = $"[X] SÍMBOLO INCORRECTO — Sigue el patrón marcado arriba (Paso {pasoVisible} / 4)";
                     textoEstado.color = Color.white;
                 }
                 else if (tiempoFlashAcierto > 0f)
                 {
                     fondoBannerEstado.color = new Color(0.08f, 0.38f, 0.22f, 0.98f);
-                    textoEstado.text = $"✓ SÍMBOLO CORRECTO — Continúa con el Paso {pasoVisible} / 4";
+                    textoEstado.text = $"[OK] SÍMBOLO CORRECTO — Continúa con el Paso {pasoVisible} / 4";
                     textoEstado.color = new Color(0.45f, 1f, 0.68f);
                 }
                 else if (reabiertoConProgreso)
