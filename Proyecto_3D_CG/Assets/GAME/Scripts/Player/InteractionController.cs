@@ -38,7 +38,7 @@ public class InteractionController : MonoBehaviour
             if (objetivoActual != null)
             {
                 objetivoActual = null;
-                if (!ArmarioEscondite.JugadorOculto && UIManager.Instance != null)
+                if (!ArmarioEscondite.JugadorOculto && !ArmarioEscondite.EstaJugadorDentroDeArmario(transform) && UIManager.Instance != null)
                     UIManager.Instance.OcultarPrompt();
             }
             return;

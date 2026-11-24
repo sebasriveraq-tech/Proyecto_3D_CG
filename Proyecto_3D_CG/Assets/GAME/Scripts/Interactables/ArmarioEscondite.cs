@@ -9,6 +9,14 @@ using UnityEngine.InputSystem;
 /// Al volver a presionar E, abre la puerta, saca al jugador y vuelve a cerrar.
 public class ArmarioEscondite : Interactable
 {
+    private enum EstadoArmario
+    {
+        CerradoLibre,
+        Entrando,
+        Oculto,
+        Saliendo
+    }
+
     public static bool JugadorOculto { get; private set; }
     public static ArmarioEscondite ArmarioActivo { get; private set; }
     public static bool FijarCamaraInterna { get; private set; }
@@ -31,19 +39,34 @@ public class ArmarioEscondite : Interactable
     private float progreso;               // 0 = cerrada, 1 = abierta
     private float progresoObjetivo;
 
-    private bool ocultoEnEsteArmario;
-    private bool enTransicion;
+    private EstadoArmario estado = EstadoArmario.CerradoLibre;
+    private Coroutine rutinaActiva;
+    private bool solicitudSalidaPendiente;
+    private float tiempoBloqueoReentrada;
     private int frameUltimaInteraccion = -1;
 
     private PlayerController jugadorActual;
     private CharacterController characterControllerJugador;
+    private Collider[] collidersPuerta;
     private float yawBaseArmario;
     private float offsetYawMirada;
+
+    private bool EnTransicion => estado == EstadoArmario.Entrando || estado == EstadoArmario.Saliendo;
+    private float DuracionPuertaEfectiva => Mathf.Clamp(duracion, 0.15f, 0.35f);
 
     public Vector3 PosicionCamaraInterna =>
         puntoInterno != null
             ? puntoInterno.position + Vector3.up * 1.52f + transform.forward * 0.08f
             : transform.TransformPoint(new Vector3(0f, 1.57f, 0.02f));
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ReiniciarEstadoEstatico()
+    {
+        JugadorOculto = false;
+        ArmarioActivo = null;
+        FijarCamaraInterna = false;
+        armariosActivos.Clear();
+    }
 
     private void Awake()
     {
@@ -59,15 +82,23 @@ public class ArmarioEscondite : Interactable
         armariosActivos.Add(this);
     }
 
+    private bool EstaPosicionDentroDeEsteArmario(Vector3 posMundo)
+    {
+        Vector3 local = transform.InverseTransformPoint(posMundo);
+        return Mathf.Abs(local.x) < 0.72f
+            && local.z > -0.58f
+            && local.z < 0.58f
+            && local.y >= -0.25f
+            && local.y < 2.45f;
+    }
+
     public static bool EstaJugadorDentroDeArmario(Transform jugador)
     {
         if (JugadorOculto) return true;
         if (jugador == null) return false;
         foreach (ArmarioEscondite armario in armariosActivos)
         {
-            if (armario == null) continue;
-            Vector3 local = armario.transform.InverseTransformPoint(jugador.position);
-            if (Mathf.Abs(local.x) < 0.72f && local.z > -0.58f && local.z < 0.58f && local.y >= -0.25f && local.y < 2.45f)
+            if (armario != null && armario.EstaPosicionDentroDeEsteArmario(jugador.position))
                 return true;
         }
         return false;
@@ -80,9 +111,10 @@ public class ArmarioEscondite : Interactable
 
         if (bisagra != null)
         {
-            duracion = Mathf.Max(0.1f, duracion);
+            duracion = Mathf.Max(0.15f, duracion);
             rotacionCerrada = bisagra.localRotation;
             rotacionAbierta = rotacionCerrada * Quaternion.Euler(0f, anguloApertura, 0f);
+            collidersPuerta = bisagra.GetComponentsInChildren<Collider>(true);
         }
 
         if (audioSource == null)
@@ -124,7 +156,7 @@ public class ArmarioEscondite : Interactable
             {
                 GameObject goExt = new GameObject("Punto_Referencia_Externo");
                 goExt.transform.SetParent(transform, false);
-                goExt.transform.localPosition = new Vector3(0f, 0.05f, 1.38f);
+                goExt.transform.localPosition = new Vector3(0f, 0.05f, 1.45f);
                 goExt.transform.localRotation = Quaternion.identity;
                 puntoExterno = goExt.transform;
             }
@@ -162,10 +194,10 @@ public class ArmarioEscondite : Interactable
     /// y mirando hacia el armario mediante Vector3.Dot.
     public override bool PuedeInteractuar(Transform origenJugador)
     {
-        if (ocultoEnEsteArmario)
+        if (estado == EstadoArmario.Oculto)
             return true;
 
-        if (JugadorOculto || enTransicion || origenJugador == null)
+        if (JugadorOculto || EnTransicion || Time.unscaledTime < tiempoBloqueoReentrada || origenJugador == null)
             return false;
 
         Vector3 localPos = transform.InverseTransformPoint(origenJugador.position);
@@ -208,65 +240,156 @@ public class ArmarioEscondite : Interactable
     {
         if (bisagra != null)
         {
-            progreso = Mathf.MoveTowards(progreso, progresoObjetivo, Time.deltaTime / Mathf.Max(0.1f, duracion));
+            progreso = Mathf.MoveTowards(progreso, progresoObjetivo, Time.deltaTime / DuracionPuertaEfectiva);
             float suave = Mathf.SmoothStep(0f, 1f, progreso);
             bisagra.localRotation = Quaternion.Slerp(rotacionCerrada, rotacionAbierta, suave);
         }
 
-        if (!ocultoEnEsteArmario || enTransicion || Time.timeScale == 0f || PanelTerminalZ1.Abierto)
+        if (Time.timeScale == 0f || PanelTerminalZ1.Abierto || PanelTeclado.Abierto)
             return;
 
-        // Mantener al jugador fijo en el punto interno con rotación horizontal limitada para no atravesar paredes
-        if (jugadorActual != null && Mouse.current != null)
+        // Si el jugador pulsa E rápido mientras termina la entrada, encolar la salida automática
+        if (estado == EstadoArmario.Entrando)
         {
-            Vector2 delta = Mouse.current.delta.ReadValue();
-            offsetYawMirada = Mathf.Clamp(offsetYawMirada + delta.x * jugadorActual.sensibilidadMouse, -32f, 32f);
-            jugadorActual.transform.position = puntoInterno.position;
-            jugadorActual.transform.rotation = Quaternion.Euler(0f, yawBaseArmario + offsetYawMirada, 0f);
+            if (Keyboard.current != null &&
+                Keyboard.current.eKey.wasPressedThisFrame &&
+                Time.frameCount != frameUltimaInteraccion)
+            {
+                frameUltimaInteraccion = Time.frameCount;
+                solicitudSalidaPendiente = true;
+            }
+            return;
         }
 
-        if (UIManager.Instance != null)
-            UIManager.Instance.MostrarPrompt("Oculto en el armario — Presiona E para salir");
-
-        // Permitir salir con E en cualquier momento mientras esté oculto
-        if (Keyboard.current != null &&
-            Keyboard.current.eKey.wasPressedThisFrame &&
-            Time.frameCount != frameUltimaInteraccion)
+        if (estado == EstadoArmario.Oculto)
         {
-            frameUltimaInteraccion = Time.frameCount;
-            StartCoroutine(RutinaSalirEscondite());
+            if (!JugadorOculto) JugadorOculto = true;
+            if (ArmarioActivo != this) ArmarioActivo = this;
+
+            // Mantener al jugador fijo en el punto interno con rotación horizontal limitada para no atravesar paredes
+            if (jugadorActual != null && Mouse.current != null)
+            {
+                Vector2 delta = Mouse.current.delta.ReadValue();
+                offsetYawMirada = Mathf.Clamp(offsetYawMirada + delta.x * jugadorActual.sensibilidadMouse, -32f, 32f);
+                jugadorActual.transform.position = puntoInterno.position;
+                jugadorActual.transform.rotation = Quaternion.Euler(0f, yawBaseArmario + offsetYawMirada, 0f);
+            }
+
+            if (UIManager.Instance != null)
+                UIManager.Instance.MostrarPrompt("Oculto en el armario — Presiona E para salir");
+
+            if (Keyboard.current != null &&
+                Keyboard.current.eKey.wasPressedThisFrame &&
+                Time.frameCount != frameUltimaInteraccion)
+            {
+                frameUltimaInteraccion = Time.frameCount;
+                IniciarSalida();
+            }
+            return;
+        }
+
+        // Failsafe anti-atrapamiento: si por cualquier colisión el jugador quedó dentro del armario en estado libre,
+        // ofrecer y permitir la salida inmediata al presionar E.
+        if (estado == EstadoArmario.CerradoLibre && !JugadorOculto && ArmarioActivo == null)
+        {
+            PlayerController jugador = ObtenerJugadorActual();
+            if (jugador != null && EstaPosicionDentroDeEsteArmario(jugador.transform.position))
+            {
+                if (UIManager.Instance != null)
+                    UIManager.Instance.MostrarPrompt("Presiona E para salir del armario");
+
+                if (Keyboard.current != null &&
+                    Keyboard.current.eKey.wasPressedThisFrame &&
+                    Time.frameCount != frameUltimaInteraccion)
+                {
+                    frameUltimaInteraccion = Time.frameCount;
+                    jugadorActual = jugador;
+                    characterControllerJugador = jugador.GetComponent<CharacterController>();
+                    yawBaseArmario = transform.eulerAngles.y;
+                    IniciarSalida();
+                }
+            }
         }
     }
 
     public override void Interactuar()
     {
-        if (enTransicion || Time.frameCount == frameUltimaInteraccion || PanelTerminalZ1.Abierto || PanelTeclado.Abierto)
+        if (Time.frameCount == frameUltimaInteraccion || PanelTerminalZ1.Abierto || PanelTeclado.Abierto)
             return;
 
         frameUltimaInteraccion = Time.frameCount;
 
-        if (ocultoEnEsteArmario)
+        if (estado == EstadoArmario.Entrando)
         {
-            StartCoroutine(RutinaSalirEscondite());
+            solicitudSalidaPendiente = true;
             return;
         }
 
-        if (JugadorOculto)
+        if (estado == EstadoArmario.Saliendo)
             return;
 
-        PlayerController jugador = FindFirstObjectByType<PlayerController>();
+        if (estado == EstadoArmario.Oculto)
+        {
+            IniciarSalida();
+            return;
+        }
+
+        if (JugadorOculto || Time.unscaledTime < tiempoBloqueoReentrada)
+            return;
+
+        PlayerController jugador = ObtenerJugadorActual();
         if (jugador == null)
         {
-            // Fallback por si no hay PlayerController activo: solo abrir/cerrar puerta
             progresoObjetivo = progresoObjetivo > 0.5f ? 0f : 1f;
             ReproducirSonidoPuerta(progresoObjetivo > 0.5f);
+            return;
+        }
+
+        if (EstaPosicionDentroDeEsteArmario(jugador.transform.position))
+        {
+            jugadorActual = jugador;
+            characterControllerJugador = jugador.GetComponent<CharacterController>();
+            yawBaseArmario = transform.eulerAngles.y;
+            IniciarSalida();
             return;
         }
 
         if (!PuedeInteractuar(jugador.transform))
             return;
 
-        StartCoroutine(RutinaEntrarEscondite(jugador));
+        if (rutinaActiva == null)
+            rutinaActiva = StartCoroutine(RutinaEntrarEscondite(jugador));
+    }
+
+    private PlayerController ObtenerJugadorActual()
+    {
+        if (jugadorActual != null && jugadorActual.gameObject.activeInHierarchy)
+            return jugadorActual;
+
+        jugadorActual = FindFirstObjectByType<PlayerController>();
+        return jugadorActual;
+    }
+
+    private void IniciarSalida()
+    {
+        if (rutinaActiva != null || estado == EstadoArmario.Saliendo)
+            return;
+
+        solicitudSalidaPendiente = false;
+        rutinaActiva = StartCoroutine(RutinaSalirEscondite());
+    }
+
+    private void EstablecerColisionPuertaConJugador(Collider colJugador, bool ignorar)
+    {
+        if (colJugador == null || !colJugador.enabled || collidersPuerta == null)
+            return;
+
+        for (int i = 0; i < collidersPuerta.Length; i++)
+        {
+            Collider colPuerta = collidersPuerta[i];
+            if (colPuerta != null && colPuerta.enabled)
+                Physics.IgnoreCollision(colPuerta, colJugador, ignorar);
+        }
     }
 
     private void ReproducirSonidoPuerta(bool abrir)
@@ -284,14 +407,15 @@ public class ArmarioEscondite : Interactable
         PanelTerminalZ1.CerrarPanelActivoPorEventoExterno();
         PanelTeclado.CerrarPanelActivoPorEventoExterno();
 
-        enTransicion = true;
-        ocultoEnEsteArmario = true;
+        estado = EstadoArmario.Entrando;
+        solicitudSalidaPendiente = false;
         JugadorOculto = true;
         ArmarioActivo = this;
         FijarCamaraInterna = false;
 
         jugadorActual = jugador;
         characterControllerJugador = jugador.GetComponent<CharacterController>();
+        EstablecerColisionPuertaConJugador(characterControllerJugador, true);
         if (characterControllerJugador != null)
             characterControllerJugador.enabled = false;
 
@@ -304,7 +428,7 @@ public class ArmarioEscondite : Interactable
         // 1. Abrir la puerta del armario con su sonido metálico
         ReproducirSonidoPuerta(true);
         progresoObjetivo = 1f;
-        float limiteEspera = Mathf.Max(0.45f, duracion) + 0.25f;
+        float limiteEspera = DuracionPuertaEfectiva + 0.25f;
         float esperaApertura = 0f;
         while (progreso < 0.88f && esperaApertura < limiteEspera)
         {
@@ -319,7 +443,7 @@ public class ArmarioEscondite : Interactable
         Quaternion rotDestino = Quaternion.Euler(0f, yawBaseArmario, 0f);
 
         float t = 0f;
-        const float tiempoEntrada = 0.30f;
+        const float tiempoEntrada = 0.24f;
         while (t < 1f)
         {
             t += Time.deltaTime / tiempoEntrada;
@@ -343,26 +467,38 @@ public class ArmarioEscondite : Interactable
             yield return null;
         }
 
+        estado = EstadoArmario.Oculto;
+        rutinaActiva = null;
+
+        if (solicitudSalidaPendiente)
+        {
+            solicitudSalidaPendiente = false;
+            IniciarSalida();
+            yield break;
+        }
+
         mensajePrompt = "Presiona E para salir del armario";
         if (UIManager.Instance != null)
         {
             UIManager.Instance.MostrarMensaje("Te has escondido en el armario");
             UIManager.Instance.MostrarPrompt("Oculto en el armario — Presiona E para salir");
         }
-
-        enTransicion = false;
     }
 
     private IEnumerator RutinaSalirEscondite()
     {
-        enTransicion = true;
+        estado = EstadoArmario.Saliendo;
+        solicitudSalidaPendiente = false;
+        JugadorOculto = true;
+        ArmarioActivo = this;
+
         if (UIManager.Instance != null)
             UIManager.Instance.OcultarPrompt();
 
         // 1. Abrir la puerta del armario antes de mover al jugador
         ReproducirSonidoPuerta(true);
         progresoObjetivo = 1f;
-        float limiteEspera = Mathf.Max(0.45f, duracion) + 0.25f;
+        float limiteEspera = DuracionPuertaEfectiva + 0.25f;
         float esperaApertura = 0f;
         while (progreso < 0.88f && esperaApertura < limiteEspera)
         {
@@ -376,17 +512,17 @@ public class ArmarioEscondite : Interactable
         {
             Vector3 posInicio = jugadorActual.transform.position;
             Vector3 posSalida = puntoExterno.position;
-            if (puntoExterno.parent == transform && puntoExterno.localPosition.z < 1.38f)
+            if (puntoExterno.parent == transform && puntoExterno.localPosition.z < 1.45f)
             {
                 Vector3 locExt = puntoExterno.localPosition;
-                locExt.z = 1.38f;
+                locExt.z = 1.45f;
                 posSalida = transform.TransformPoint(locExt);
             }
             Quaternion rotInicio = jugadorActual.transform.rotation;
             Quaternion rotSalida = Quaternion.Euler(0f, yawBaseArmario, 0f);
 
             float t = 0f;
-            const float tiempoSalida = 0.30f;
+            const float tiempoSalida = 0.24f;
             while (t < 1f)
             {
                 t += Time.deltaTime / tiempoSalida;
@@ -400,17 +536,20 @@ public class ArmarioEscondite : Interactable
             jugadorActual.transform.rotation = rotSalida;
         }
 
-        // 3. Liberar al jugador afuera y cerrar la puerta detrás con su sonido correspondiente
+        // 3. Liberar al jugador afuera ignorando la puerta mientras cierra para evitar empujones de vuelta
         if (characterControllerJugador != null)
+        {
             characterControllerJugador.enabled = true;
+            EstablecerColisionPuertaConJugador(characterControllerJugador, true);
+        }
 
-        ocultoEnEsteArmario = false;
         JugadorOculto = false;
         FijarCamaraInterna = false;
         if (ArmarioActivo == this)
             ArmarioActivo = null;
 
         mensajePrompt = "Presiona E para esconderte en el armario";
+        tiempoBloqueoReentrada = Time.unscaledTime + 0.35f;
 
         ReproducirSonidoPuerta(false);
         progresoObjetivo = 0f;
@@ -421,17 +560,29 @@ public class ArmarioEscondite : Interactable
             yield return null;
         }
 
-        enTransicion = false;
+        EstablecerColisionPuertaConJugador(characterControllerJugador, false);
+        estado = EstadoArmario.CerradoLibre;
+        rutinaActiva = null;
     }
 
     private void OnDisable()
     {
         armariosActivos.Remove(this);
-        if (ocultoEnEsteArmario)
+        if (rutinaActiva != null)
         {
-            if (characterControllerJugador != null)
-                characterControllerJugador.enabled = true;
-            ocultoEnEsteArmario = false;
+            StopCoroutine(rutinaActiva);
+            rutinaActiva = null;
+        }
+
+        if (characterControllerJugador != null)
+        {
+            characterControllerJugador.enabled = true;
+            EstablecerColisionPuertaConJugador(characterControllerJugador, false);
+        }
+
+        solicitudSalidaPendiente = false;
+        if (estado == EstadoArmario.Oculto || estado == EstadoArmario.Entrando || estado == EstadoArmario.Saliendo)
+        {
             JugadorOculto = false;
             FijarCamaraInterna = false;
             if (ArmarioActivo == this)
@@ -440,6 +591,8 @@ public class ArmarioEscondite : Interactable
         else if (ArmarioActivo == this)
         {
             FijarCamaraInterna = false;
+            ArmarioActivo = null;
         }
+        estado = EstadoArmario.CerradoLibre;
     }
 }
