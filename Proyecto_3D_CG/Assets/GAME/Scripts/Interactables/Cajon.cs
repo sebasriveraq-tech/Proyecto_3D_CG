@@ -37,9 +37,13 @@ public class Cajon : Interactable
 
     public override void Interactuar()
     {
-        if (abierto || enMovimiento) return;
+        if (ArmarioEscondite.JugadorOculto || abierto || enMovimiento) return;
 
-        ReproducirSonidoInteraccion();
+        AudioSource fuenteLocal = GetComponent<AudioSource>();
+        if (fuenteLocal != null && fuenteLocal.clip != null)
+            ReproducirSonidoInteraccion(fuenteLocal);
+        else
+            LabAudioFeedback.ReproducirContenedor(transform.position, true);
 
         if (UIManager.Instance != null)
         {

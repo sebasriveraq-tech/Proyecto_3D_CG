@@ -39,6 +39,7 @@ public class PanelTeclado : MonoBehaviour
 
     // Mismo patrón que PanelMiniJuegoZ2: el UIManager cierra el panel activo ante eventos externos
     private static PanelTeclado activo;
+    public static bool Abierto => activo != null;
 
     public static void CerrarPanelActivoPorEventoExterno()
     {
@@ -70,6 +71,8 @@ public class PanelTeclado : MonoBehaviour
     /// Abre el panel. 'validador' recibe el código completo y devuelve true si es correcto.
     public void Abrir(int longitudCodigo, Func<string, bool> validador, Action alCerrarPanel)
     {
+        if (ArmarioEscondite.JugadorOculto) return;
+
         longitud = longitudCodigo;
         validar = validador;
         alCerrar = alCerrarPanel;
@@ -116,7 +119,10 @@ public class PanelTeclado : MonoBehaviour
         {
             textoPantalla.text = "ACCESO CONCEDIDO";
             textoPantalla.color = colorAcierto;
-            Sonar(sonidoAcierto);
+            if (sonidoAcierto != null)
+                Sonar(sonidoAcierto);
+            else
+                LabAudioFeedback.ReproducirSistemaRestaurado(PosicionAudio());
             yield return new WaitForSeconds(1.2f);
             Cerrar();
         }
@@ -124,7 +130,10 @@ public class PanelTeclado : MonoBehaviour
         {
             textoPantalla.text = "CÓDIGO INCORRECTO";
             textoPantalla.color = colorError;
-            Sonar(sonidoError);
+            if (sonidoError != null)
+                Sonar(sonidoError);
+            else
+                LabAudioFeedback.ReproducirAccesoDenegado(PosicionAudio());
             yield return new WaitForSeconds(1.2f);
 
             ingreso = "";
@@ -136,8 +145,11 @@ public class PanelTeclado : MonoBehaviour
 
     public void Cerrar()
     {
+        bool cerrarManualmente = activo == this && !bloqueado && Time.timeScale > 0f && !ArmarioEscondite.JugadorOculto;
         if (activo == this) activo = null;
         gameObject.SetActive(false);
+        if (cerrarManualmente)
+            LabAudioFeedback.ReproducirPanelUI(false);
         Action callback = alCerrar;
         alCerrar = null;
         callback?.Invoke();
@@ -155,7 +167,21 @@ public class PanelTeclado : MonoBehaviour
 
     private void Sonar(AudioClip clip)
     {
+        float factor = GameSettingsManager.FactorEfectos;
+        if (factor <= 0.0001f) return;
+
         if (fuente != null && clip != null)
-            fuente.PlayOneShot(clip);
+        {
+            fuente.PlayOneShot(clip, factor);
+            return;
+        }
+
+        if (clip == null)
+            LabAudioFeedback.ReproducirPanelUI(true);
+    }
+
+    private Vector3 PosicionAudio()
+    {
+        return Camera.main != null ? Camera.main.transform.position : transform.position;
     }
 }

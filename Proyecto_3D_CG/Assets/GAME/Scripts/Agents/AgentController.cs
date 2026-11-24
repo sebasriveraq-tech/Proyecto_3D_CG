@@ -38,6 +38,12 @@ public class AgentController : MonoBehaviour
     public Color colorAtaque = new Color(1f, 0.28f, 0.04f);
     public Color colorRetorno = new Color(0.38f, 0.55f, 0.9f);
 
+    [Header("Audio de pasos")]
+    public AudioClip sonidoPasos;
+    public float intervaloPasoPatrulla = 0.62f;
+    public float intervaloPasoPersecucion = 0.36f;
+    public float volumenPasos = 0.44f;
+
     public AgentState EstadoActual { get; private set; } = AgentState.Patrulla;
 
     private NavMeshAgent agente;
@@ -49,6 +55,7 @@ public class AgentController : MonoBehaviour
     private float finInvestigacion;
     private float proximaActualizacionRuta;
     private float pausaHasta;
+    private float temporizadorPasos;
     private bool patrullaEsperando;
     private MaterialPropertyBlock bloqueMaterial;
 
@@ -58,8 +65,14 @@ public class AgentController : MonoBehaviour
         audioEstado = audioEstado != null ? audioEstado : GetComponent<AudioSource>();
         if (audioEstado == null) audioEstado = gameObject.AddComponent<AudioSource>();
         audioEstado.playOnAwake = false;
+        audioEstado.loop = false;
         audioEstado.spatialBlend = 1f;
-        audioEstado.volume = 0.45f;
+        audioEstado.minDistance = 2.2f;
+        audioEstado.maxDistance = 16f;
+        audioEstado.rolloffMode = AudioRolloffMode.Logarithmic;
+        audioEstado.dopplerLevel = 0f;
+        audioEstado.volume = volumenPasos;
+        GameSettingsManager.GarantizarInstancia().RegistrarFuenteConVolumenBase(audioEstado, volumenPasos);
 
         if (indicadoresVisuales == null || indicadoresVisuales.Length == 0)
             indicadoresVisuales = GetComponentsInChildren<Renderer>();
@@ -117,6 +130,34 @@ public class AgentController : MonoBehaviour
             case AgentState.Retorno:
                 ActualizarRetorno(visible);
                 break;
+        }
+
+        ActualizarPasosAgente();
+    }
+
+    private void ActualizarPasosAgente()
+    {
+        if (sonidoPasos == null || audioEstado == null || agente == null)
+            return;
+
+        if (agente.velocity.sqrMagnitude <= 0.12f)
+        {
+            temporizadorPasos = Mathf.Min(temporizadorPasos, 0.12f);
+            return;
+        }
+
+        bool rapido = EstadoActual == AgentState.Persecucion || EstadoActual == AgentState.Ataque;
+        temporizadorPasos -= Time.deltaTime;
+        if (temporizadorPasos <= 0f)
+        {
+            float factor = GameSettingsManager.FactorEfectos;
+            if (factor > 0.0001f)
+            {
+                audioEstado.mute = GameSettingsManager.Instance != null && GameSettingsManager.Instance.silenciado;
+                audioEstado.pitch = Random.Range(0.92f, 1.06f);
+                audioEstado.PlayOneShot(sonidoPasos, rapido ? 1f : 0.72f);
+            }
+            temporizadorPasos = Mathf.Max(0.20f, rapido ? intervaloPasoPersecucion : intervaloPasoPatrulla);
         }
     }
 

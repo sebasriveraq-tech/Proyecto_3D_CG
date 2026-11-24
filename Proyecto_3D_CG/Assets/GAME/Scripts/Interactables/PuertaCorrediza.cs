@@ -37,7 +37,7 @@ public class PuertaCorrediza : Interactable
 
     public override void Interactuar()
     {
-        if (abierta || enMovimiento) return;
+        if (ArmarioEscondite.JugadorOculto || abierta || enMovimiento) return;
 
         // 1) Sin energía: falta completar la etapa de código de esta puerta
         if (requiereEnergia && controlador != null && !controlador.EtapaCompletada(etapaRequerida))
@@ -75,7 +75,15 @@ public class PuertaCorrediza : Interactable
     private void Denegar(string mensaje)
     {
         if (sonidoDenegado != null)
-            AudioSource.PlayClipAtPoint(sonidoDenegado, transform.position);
+        {
+            float factor = GameSettingsManager.FactorEfectos;
+            if (factor > 0.0001f)
+                AudioSource.PlayClipAtPoint(sonidoDenegado, transform.position, 0.85f * factor);
+        }
+        else
+        {
+            LabAudioFeedback.ReproducirAccesoDenegado(transform.position);
+        }
 
         if (UIManager.Instance != null)
             UIManager.Instance.MostrarMensaje(mensaje);

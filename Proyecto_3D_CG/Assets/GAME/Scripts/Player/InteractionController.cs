@@ -30,11 +30,17 @@ public class InteractionController : MonoBehaviour
 
     private void Update()
     {
-        // Si el juego esta en pausa, el panel de reparacion esta abierto o el jugador esta dentro de un armario,
-        // el propio sistema activo controla la interfaz.
-        if (Time.timeScale == 0f || PanelTerminalZ1.Abierto || ArmarioEscondite.JugadorOculto)
+        // Si el juego esta en pausa, un panel interactivo esta abierto o el jugador esta dentro de un armario,
+        // no se detectan ni activan otros interactuables del entorno.
+        if (Time.timeScale == 0f || PanelTerminalZ1.Abierto || PanelTeclado.Abierto ||
+            ArmarioEscondite.JugadorOculto || ArmarioEscondite.EstaJugadorDentroDeArmario(transform))
         {
-            objetivoActual = null;
+            if (objetivoActual != null)
+            {
+                objetivoActual = null;
+                if (!ArmarioEscondite.JugadorOculto && UIManager.Instance != null)
+                    UIManager.Instance.OcultarPrompt();
+            }
             return;
         }
 
@@ -93,6 +99,17 @@ public class InteractionController : MonoBehaviour
                     Interactable candidato = col.GetComponentInParent<Interactable>();
                     if (candidato != null && candidato.PuedeInteractuar(transform))
                     {
+                        Vector3 puntoObjetivo = impactosEsfera[i].distance > 0.001f
+                            ? impactosEsfera[i].point
+                            : ((col is BoxCollider || col is SphereCollider || col is CapsuleCollider || (col is MeshCollider mc && mc.convex))
+                                ? col.ClosestPoint(referenciaOjos)
+                                : col.bounds.center);
+                        if (Physics.Linecast(referenciaOjos, puntoObjetivo, out RaycastHit bloqueo, ~0, QueryTriggerInteraction.Ignore))
+                        {
+                            Collider colBloqueo = bloqueo.collider;
+                            if (colBloqueo != null && !colBloqueo.transform.IsChildOf(transform) && !colBloqueo.transform.IsChildOf(candidato.transform))
+                                continue;
+                        }
                         nuevoObjetivo = candidato;
                         break;
                     }

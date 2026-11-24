@@ -228,6 +228,12 @@ public class GameSettingsManager : MonoBehaviour
         {
             if (fuente == null) continue;
 
+            if (EsFuenteDinamicaAgente(fuente))
+            {
+                fuente.mute = silenciado;
+                continue;
+            }
+
             int id = fuente.GetInstanceID();
             if (!volumenesBase.TryGetValue(id, out float baseVol))
             {
@@ -254,15 +260,33 @@ public class GameSettingsManager : MonoBehaviour
 
     public void ReproducirFeedbackUI()
     {
+        ReproducirFeedbackUI(1.08f);
+    }
+
+    public void ReproducirFeedbackUI(float pitch)
+    {
         if (silenciado || fuentePreviewUI == null) return;
 
-        AudioClip clip = Resources.Load<AudioClip>("SFX/SFX_BotonPresion");
+        AudioClip clip = (UIManager.Instance != null && UIManager.Instance.sonidoClicUI != null)
+            ? UIManager.Instance.sonidoClicUI
+            : Resources.Load<AudioClip>("SFX/SFX_BotonPresion");
         if (clip == null) return;
 
         fuentePreviewUI.mute = silenciado;
         fuentePreviewUI.volume = 0.42f * volumenEfectos;
-        fuentePreviewUI.pitch = 1.08f;
+        fuentePreviewUI.pitch = Mathf.Clamp(pitch, 0.5f, 2f);
         fuentePreviewUI.PlayOneShot(clip);
+    }
+
+    private static bool EsFuenteDinamicaAgente(AudioSource fuente)
+    {
+        if (fuente == null) return false;
+        if (fuente.rolloffMode == AudioRolloffMode.Custom) return true;
+        if (fuente.clip == null) return false;
+
+        string nombreClip = fuente.clip.name;
+        return nombreClip.IndexOf("Radio_Acercamiento", StringComparison.OrdinalIgnoreCase) >= 0
+            || nombreClip.IndexOf("Musica_Persecucion", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private static bool EsFuenteMusicaOAmbiente(AudioSource fuente)

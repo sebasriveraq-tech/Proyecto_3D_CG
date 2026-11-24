@@ -21,17 +21,30 @@ public class PlayerController : MonoBehaviour
     public float margenSobreElSuelo = 0.05f;  // altura a la que se apoya al jugador al entrar a la zona
     public float caidaMaxima = 6f;            // metros por debajo del suelo antes de devolverlo a tierra
 
+    [Header("Audio de pasos")]
+    public AudioClip[] pasosConcreto;
+    public float intervaloPasoCaminar = 0.50f;
+    public float intervaloPasoCorrer = 0.32f;
+    public float volumenPasos = 0.34f;
+
     private CharacterController controlador;
     private float velocidadVertical;     // subida/bajada por gravedad y salto
     private float rotacionX;              // mirar arriba/abajo
     private float alturaSuelo;            // altura del piso de la zona actual
     private Vector3 posicionSegura;       // ultimo punto con el jugador apoyado
+    private AudioSource fuentePasos;
+    private float temporizadorPasos;
+    private int ultimoIndicePaso = -1;
+    private bool tienePasosExternos;
+    private bool estabaEnSuelo = true;
+    private float velocidadVerticalPrevia;
 
     public float RotacionVertical => rotacionX;
 
     private void Start()
     {
         controlador = GetComponent<CharacterController>();
+        ConfigurarAudioPasos();
 
         if (camara != null)
         {
@@ -118,13 +131,11 @@ public class PlayerController : MonoBehaviour
         
         Vector3 direccion = transform.right * x + transform.forward * z; // Direccion relativa a hacia donde mira el jugador.
 
-        
         if (direccion.magnitude > 1f) direccion.Normalize(); // Evitar que en diagonal se mueva mas rapido.
 
-        float velocidadActual = velocidad;
-        if (Keyboard.current.leftShiftKey.isPressed) velocidadActual = velocidadCorriendo;
+        bool corriendo = Keyboard.current.leftShiftKey.isPressed;
+        float velocidadActual = corriendo ? velocidadCorriendo : velocidad;
 
-        
         if (controlador.isGrounded && velocidadVertical < 0f) velocidadVertical = -2f; // Gravedad: si esta en el piso, se mantiene pegado; si salta, sube.
 
         if (Keyboard.current.spaceKey.wasPressedThisFrame && controlador.isGrounded)
@@ -135,12 +146,86 @@ public class PlayerController : MonoBehaviour
         Vector3 movimiento = direccion * velocidadActual + Vector3.up * velocidadVertical;
         controlador.Move(movimiento * Time.deltaTime);
 
+        ControlarPasos(x, z, corriendo);
+
         // Guardar el ultimo punto donde el jugador estaba realmente apoyado.
         if (controlador.isGrounded) posicionSegura = transform.position;
 
         // Si por cualquier motivo atraviesa el suelo, se devuelve a la superficie.
         if (transform.position.y < alturaSuelo - Mathf.Max(3f, Mathf.Abs(caidaMaxima)))
             RecuperarDeCaida();
+    }
+
+    private void ConfigurarAudioPasos()
+    {
+        tienePasosExternos = GetComponent<EfectosZona3>() != null;
+        if (tienePasosExternos || pasosConcreto == null || pasosConcreto.Length == 0)
+            return;
+
+        fuentePasos = gameObject.AddComponent<AudioSource>();
+        fuentePasos.playOnAwake = false;
+        fuentePasos.loop = false;
+        fuentePasos.spatialBlend = 0f;
+        fuentePasos.dopplerLevel = 0f;
+        fuentePasos.volume = volumenPasos;
+        GameSettingsManager.GarantizarInstancia().RegistrarFuenteConVolumenBase(fuentePasos, volumenPasos);
+    }
+
+    private void ControlarPasos(float entradaX, float entradaZ, bool corriendo)
+    {
+        if (tienePasosExternos || fuentePasos == null || pasosConcreto == null || pasosConcreto.Length == 0)
+            return;
+
+        if (!estabaEnSuelo && controlador.isGrounded && velocidadVerticalPrevia < -3.5f)
+        {
+            ReproducirPasoConcreto(0.90f);
+            temporizadorPasos = 0.25f;
+        }
+        else if (controlador.isGrounded)
+        {
+            Vector3 velPlana = controlador.velocity;
+            velPlana.y = 0f;
+            bool enMovimiento = (Mathf.Abs(entradaX) > 0.01f || Mathf.Abs(entradaZ) > 0.01f) && velPlana.magnitude > 0.35f;
+
+            if (enMovimiento)
+            {
+                temporizadorPasos -= Time.deltaTime;
+                if (temporizadorPasos <= 0f)
+                {
+                    ReproducirPasoConcreto(corriendo ? 1f : 0.78f);
+                    temporizadorPasos = Mathf.Max(0.15f, corriendo ? intervaloPasoCorrer : intervaloPasoCaminar);
+                }
+            }
+            else
+            {
+                temporizadorPasos = Mathf.Min(temporizadorPasos, 0.08f);
+            }
+        }
+
+        estabaEnSuelo = controlador.isGrounded;
+        velocidadVerticalPrevia = velocidadVertical;
+    }
+
+    private void ReproducirPasoConcreto(float escala)
+    {
+        if (fuentePasos == null || pasosConcreto == null || pasosConcreto.Length == 0) return;
+        if (GameSettingsManager.FactorEfectos <= 0.0001f) return;
+
+        int indice = 0;
+        if (pasosConcreto.Length > 1)
+        {
+            indice = Random.Range(0, pasosConcreto.Length);
+            if (indice == ultimoIndicePaso)
+                indice = (indice + 1) % pasosConcreto.Length;
+        }
+        ultimoIndicePaso = indice;
+
+        AudioClip clip = pasosConcreto[indice];
+        if (clip == null) return;
+
+        fuentePasos.mute = GameSettingsManager.Instance != null && GameSettingsManager.Instance.silenciado;
+        fuentePasos.pitch = Random.Range(0.93f, 1.07f);
+        fuentePasos.PlayOneShot(clip, escala);
     }
 
     // Coloca al jugador justo encima del piso que hay debajo del punto de aparicion.

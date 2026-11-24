@@ -140,7 +140,7 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
 
     public void Abrir()
     {
-        if (Time.timeScale == 0f || EstaEnPantallaModal()) return;
+        if (Time.timeScale == 0f || EstaEnPantallaModal() || ArmarioEscondite.JugadorOculto) return;
         if (instanciaAbierta != null && instanciaAbierta != this)
             instanciaAbierta.Cerrar(false);
 
@@ -198,6 +198,7 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
 
     public void Cerrar(bool restaurarCursorJuego)
     {
+        bool reproducirCierre = esteAbierto && restaurarCursorJuego;
         if (esteAbierto)
         {
             esteAbierto = false;
@@ -208,6 +209,9 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
 
         if (PanelObjetivo.activeSelf)
             PanelObjetivo.SetActive(false);
+
+        if (reproducirCierre)
+            LabAudioFeedback.ReproducirPanelUI(false);
 
         if (restaurarCursorJuego && !EstaEnPantallaModal() && Time.timeScale > 0f)
         {
@@ -302,7 +306,7 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
     private void Update()
     {
         if (!esteAbierto || !PanelObjetivo.activeSelf) return;
-        if (Time.timeScale == 0f || EstaEnPantallaModal())
+        if (Time.timeScale == 0f || EstaEnPantallaModal() || ArmarioEscondite.JugadorOculto)
         {
             Cerrar(false);
             return;
@@ -540,7 +544,7 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
             ultimoBotonAcertado = -1;
             ultimoBotonError = idxBoton;
             tiempoFlashError = 0.60f;
-            LabAudioFeedback.ReproducirTono(PosicionAudio(), 195f, 0.16f, 0.40f);
+            LabAudioFeedback.ReproducirAccesoDenegado(PosicionAudio());
         }
 
         RefrescarVista();

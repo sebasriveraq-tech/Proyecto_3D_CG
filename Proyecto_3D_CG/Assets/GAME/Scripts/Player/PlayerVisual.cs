@@ -160,11 +160,19 @@ public class PlayerVisual : MonoBehaviour
         {
             AplicarVisibilidadModelo(false);
 
-            camara.position = ArmarioEscondite.ArmarioActivo.PosicionCamaraInterna;
-            float pitchInterno = controladorJugador != null
-                ? Mathf.Clamp(controladorJugador.RotacionVertical, -22f, 22f)
-                : 0f;
-            camara.rotation = Quaternion.Euler(pitchInterno, transform.eulerAngles.y, 0f);
+            if (ArmarioEscondite.FijarCamaraInterna)
+            {
+                camara.position = ArmarioEscondite.ArmarioActivo.PosicionCamaraInterna;
+                float pitchInterno = controladorJugador != null
+                    ? Mathf.Clamp(controladorJugador.RotacionVertical, -22f, 22f)
+                    : 0f;
+                camara.rotation = Quaternion.Euler(pitchInterno, transform.eulerAngles.y, 0f);
+            }
+            else
+            {
+                camara.position = ObtenerPosicionPrimeraPersona();
+                camara.rotation = ObtenerRotacionPrimeraPersona();
+            }
             return;
         }
 

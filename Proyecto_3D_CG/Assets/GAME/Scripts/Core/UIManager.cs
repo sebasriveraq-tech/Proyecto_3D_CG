@@ -53,6 +53,11 @@ public class UIManager : MonoBehaviour
     [SerializeField] private float intensidadPulsoDanio = 0.07f;
     [SerializeField] private float umbralVidaCritica = 0.2f;
 
+    [Header("Audio de interfaz y resultados")]
+    public AudioClip sonidoClicUI;
+    public AudioClip sonidoDerrota;
+    public AudioClip sonidoVictoria;
+
     private GameObject panelObjetivosActual;
     private TMP_Text textoObjetivosActual;
     private Scene3Controller controlZona3;
@@ -60,6 +65,8 @@ public class UIManager : MonoBehaviour
     private bool esZona3;
 
     private bool resultadoFinalRegistrado;
+    private bool stingerResultadoReproducido;
+    private AudioSource fuenteUI;
     private Coroutine rutinaMensaje;
     private Coroutine rutinaTransicionVida;
     private Coroutine rutinaPulsoDanio;
@@ -85,6 +92,41 @@ public class UIManager : MonoBehaviour
 
         AjustesUI ajustes = GetComponent<AjustesUI>();
         if (ajustes != null) ajustes.Inicializar();
+        ConfigurarFuenteUI();
+    }
+
+    private void ConfigurarFuenteUI()
+    {
+        fuenteUI = GetComponent<AudioSource>();
+        if (fuenteUI == null) fuenteUI = gameObject.AddComponent<AudioSource>();
+        fuenteUI.playOnAwake = false;
+        fuenteUI.loop = false;
+        fuenteUI.spatialBlend = 0f;
+        fuenteUI.ignoreListenerPause = true;
+        fuenteUI.dopplerLevel = 0f;
+        fuenteUI.volume = 1f;
+        GameSettingsManager.GarantizarInstancia().RegistrarFuenteConVolumenBase(fuenteUI, 1f);
+    }
+
+    public void ReproducirClicUI(float pitch = 1f)
+    {
+        float factor = GameSettingsManager.FactorEfectos;
+        if (factor <= 0.0001f || fuenteUI == null || sonidoClicUI == null) return;
+
+        fuenteUI.mute = GameSettingsManager.Instance != null && GameSettingsManager.Instance.silenciado;
+        fuenteUI.pitch = Mathf.Clamp(pitch, 0.5f, 2f);
+        fuenteUI.volume = factor;
+        fuenteUI.PlayOneShot(sonidoClicUI, 0.55f);
+    }
+
+    private void ReproducirStinger(AudioClip clip, float factorVolumen, float escala)
+    {
+        if (factorVolumen <= 0.0001f || fuenteUI == null || clip == null) return;
+
+        fuenteUI.mute = GameSettingsManager.Instance != null && GameSettingsManager.Instance.silenciado;
+        fuenteUI.pitch = 1f;
+        fuenteUI.volume = factorVolumen;
+        fuenteUI.PlayOneShot(clip, escala);
     }
 
     private void LateUpdate()
@@ -281,6 +323,13 @@ public class UIManager : MonoBehaviour
         PanelTerminalZ1.CerrarPanelActivoPorEventoExterno();
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarResultadoFinal("Victoria", estadisticasVictoria, rutaVictoria);
+        if (!stingerResultadoReproducido)
+        {
+            stingerResultadoReproducido = true;
+            Scene3Controller z3 = FindFirstObjectByType<Scene3Controller>();
+            if (z3 == null || z3.sonidoVictoria == null)
+                ReproducirStinger(sonidoVictoria, GameSettingsManager.FactorMusica, 0.72f);
+        }
         MostrarSolo(panelVictoria);
         CongelarParaBoton();
     }
@@ -324,6 +373,11 @@ public class UIManager : MonoBehaviour
         PanelTerminalZ1.CerrarPanelActivoPorEventoExterno();
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarResultadoFinal("Derrota", estadisticasDerrota, rutaDerrota);
+        if (!stingerResultadoReproducido)
+        {
+            stingerResultadoReproducido = true;
+            ReproducirStinger(sonidoDerrota, GameSettingsManager.FactorEfectos, 0.72f);
+        }
         MostrarSolo(panelDerrota);
         CongelarParaBoton();
     }

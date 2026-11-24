@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -10,6 +11,8 @@ public class ArmarioEscondite : Interactable
 {
     public static bool JugadorOculto { get; private set; }
     public static ArmarioEscondite ArmarioActivo { get; private set; }
+    public static bool FijarCamaraInterna { get; private set; }
+    private static readonly HashSet<ArmarioEscondite> armariosActivos = new HashSet<ArmarioEscondite>();
 
     [Header("Puerta y Referencias")]
     public Transform bisagra;             // pivote donde gira la puerta
@@ -17,6 +20,11 @@ public class ArmarioEscondite : Interactable
     public Transform puntoExterno;        // punto de salida frente al armario
     public float anguloApertura = -105f;  // grados que gira al abrir
     public float duracion = 0.45f;        // segundos que tarda el giro de la puerta
+
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip sonidoAbrir;
+    public AudioClip sonidoCerrar;
 
     private Quaternion rotacionCerrada;
     private Quaternion rotacionAbierta;
@@ -40,7 +48,29 @@ public class ArmarioEscondite : Interactable
     private void Awake()
     {
         if (JugadorOculto && ArmarioActivo == null)
+        {
             JugadorOculto = false;
+            FijarCamaraInterna = false;
+        }
+    }
+
+    private void OnEnable()
+    {
+        armariosActivos.Add(this);
+    }
+
+    public static bool EstaJugadorDentroDeArmario(Transform jugador)
+    {
+        if (JugadorOculto) return true;
+        if (jugador == null) return false;
+        foreach (ArmarioEscondite armario in armariosActivos)
+        {
+            if (armario == null) continue;
+            Vector3 local = armario.transform.InverseTransformPoint(jugador.position);
+            if (Mathf.Abs(local.x) < 0.72f && local.z > -0.58f && local.z < 0.58f && local.y >= -0.25f && local.y < 2.45f)
+                return true;
+        }
+        return false;
     }
 
     private void Start()
@@ -54,6 +84,17 @@ public class ArmarioEscondite : Interactable
             rotacionCerrada = bisagra.localRotation;
             rotacionAbierta = rotacionCerrada * Quaternion.Euler(0f, anguloApertura, 0f);
         }
+
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+            audioSource = gameObject.AddComponent<AudioSource>();
+        audioSource.playOnAwake = false;
+        audioSource.loop = false;
+        audioSource.spatialBlend = 1f;
+        audioSource.minDistance = 1.8f;
+        audioSource.maxDistance = 16f;
+        audioSource.dopplerLevel = 0f;
 
         if (puntoInterno == null)
         {
@@ -83,7 +124,7 @@ public class ArmarioEscondite : Interactable
             {
                 GameObject goExt = new GameObject("Punto_Referencia_Externo");
                 goExt.transform.SetParent(transform, false);
-                goExt.transform.localPosition = new Vector3(0f, 0.05f, 1.28f);
+                goExt.transform.localPosition = new Vector3(0f, 0.05f, 1.38f);
                 goExt.transform.localRotation = Quaternion.identity;
                 puntoExterno = goExt.transform;
             }
@@ -199,7 +240,7 @@ public class ArmarioEscondite : Interactable
 
     public override void Interactuar()
     {
-        if (enTransicion || Time.frameCount == frameUltimaInteraccion)
+        if (enTransicion || Time.frameCount == frameUltimaInteraccion || PanelTerminalZ1.Abierto || PanelTeclado.Abierto)
             return;
 
         frameUltimaInteraccion = Time.frameCount;
@@ -218,6 +259,7 @@ public class ArmarioEscondite : Interactable
         {
             // Fallback por si no hay PlayerController activo: solo abrir/cerrar puerta
             progresoObjetivo = progresoObjetivo > 0.5f ? 0f : 1f;
+            ReproducirSonidoPuerta(progresoObjetivo > 0.5f);
             return;
         }
 
@@ -227,25 +269,44 @@ public class ArmarioEscondite : Interactable
         StartCoroutine(RutinaEntrarEscondite(jugador));
     }
 
+    private void ReproducirSonidoPuerta(bool abrir)
+    {
+        LabAudioFeedback.ReproducirPuertaArmario(
+            transform.position,
+            abrir,
+            audioSource,
+            abrir ? sonidoAbrir : sonidoCerrar);
+    }
+
     private IEnumerator RutinaEntrarEscondite(PlayerController jugador)
     {
+        PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
+        PanelTerminalZ1.CerrarPanelActivoPorEventoExterno();
+        PanelTeclado.CerrarPanelActivoPorEventoExterno();
+
         enTransicion = true;
         ocultoEnEsteArmario = true;
         JugadorOculto = true;
         ArmarioActivo = this;
+        FijarCamaraInterna = false;
 
         jugadorActual = jugador;
         characterControllerJugador = jugador.GetComponent<CharacterController>();
         if (characterControllerJugador != null)
             characterControllerJugador.enabled = false;
 
+        if (UIManager.Instance != null)
+            UIManager.Instance.OcultarPrompt();
+
         yawBaseArmario = transform.eulerAngles.y;
         offsetYawMirada = 0f;
 
-        // 1. Abrir la puerta del armario
+        // 1. Abrir la puerta del armario con su sonido metálico
+        ReproducirSonidoPuerta(true);
         progresoObjetivo = 1f;
+        float limiteEspera = Mathf.Max(0.45f, duracion) + 0.25f;
         float esperaApertura = 0f;
-        while (progreso < 0.85f && esperaApertura < 0.45f)
+        while (progreso < 0.88f && esperaApertura < limiteEspera)
         {
             esperaApertura += Time.deltaTime;
             yield return null;
@@ -258,7 +319,7 @@ public class ArmarioEscondite : Interactable
         Quaternion rotDestino = Quaternion.Euler(0f, yawBaseArmario, 0f);
 
         float t = 0f;
-        const float tiempoEntrada = 0.26f;
+        const float tiempoEntrada = 0.30f;
         while (t < 1f)
         {
             t += Time.deltaTime / tiempoEntrada;
@@ -270,11 +331,17 @@ public class ArmarioEscondite : Interactable
 
         jugador.transform.position = posDestino;
         jugador.transform.rotation = rotDestino;
+        FijarCamaraInterna = true;
 
         // 3. Cerrar la puerta para cortar la línea de visión del guardia
+        ReproducirSonidoPuerta(false);
         progresoObjetivo = 0f;
-        while (progreso > 0.05f)
+        float esperaCierre = 0f;
+        while (progreso > 0.05f && esperaCierre < limiteEspera)
+        {
+            esperaCierre += Time.deltaTime;
             yield return null;
+        }
 
         mensajePrompt = "Presiona E para salir del armario";
         if (UIManager.Instance != null)
@@ -289,26 +356,37 @@ public class ArmarioEscondite : Interactable
     private IEnumerator RutinaSalirEscondite()
     {
         enTransicion = true;
+        if (UIManager.Instance != null)
+            UIManager.Instance.OcultarPrompt();
 
-        // 1. Abrir la puerta del armario
+        // 1. Abrir la puerta del armario antes de mover al jugador
+        ReproducirSonidoPuerta(true);
         progresoObjetivo = 1f;
+        float limiteEspera = Mathf.Max(0.45f, duracion) + 0.25f;
         float esperaApertura = 0f;
-        while (progreso < 0.85f && esperaApertura < 0.45f)
+        while (progreso < 0.88f && esperaApertura < limiteEspera)
         {
             esperaApertura += Time.deltaTime;
             yield return null;
         }
 
-        // 2. Mover al jugador al punto de salida frente al armario
+        // 2. El jugador sale mientras la puerta permanece abierta
+        FijarCamaraInterna = false;
         if (jugadorActual != null)
         {
             Vector3 posInicio = jugadorActual.transform.position;
             Vector3 posSalida = puntoExterno.position;
+            if (puntoExterno.parent == transform && puntoExterno.localPosition.z < 1.38f)
+            {
+                Vector3 locExt = puntoExterno.localPosition;
+                locExt.z = 1.38f;
+                posSalida = transform.TransformPoint(locExt);
+            }
             Quaternion rotInicio = jugadorActual.transform.rotation;
             Quaternion rotSalida = Quaternion.Euler(0f, yawBaseArmario, 0f);
 
             float t = 0f;
-            const float tiempoSalida = 0.26f;
+            const float tiempoSalida = 0.30f;
             while (t < 1f)
             {
                 t += Time.deltaTime / tiempoSalida;
@@ -322,33 +400,46 @@ public class ArmarioEscondite : Interactable
             jugadorActual.transform.rotation = rotSalida;
         }
 
+        // 3. Liberar al jugador afuera y cerrar la puerta detrás con su sonido correspondiente
         if (characterControllerJugador != null)
             characterControllerJugador.enabled = true;
 
         ocultoEnEsteArmario = false;
         JugadorOculto = false;
+        FijarCamaraInterna = false;
         if (ArmarioActivo == this)
             ArmarioActivo = null;
 
-        // 3. Cerrar la puerta detrás del jugador
-        progresoObjetivo = 0f;
         mensajePrompt = "Presiona E para esconderte en el armario";
-        if (UIManager.Instance != null)
-            UIManager.Instance.OcultarPrompt();
+
+        ReproducirSonidoPuerta(false);
+        progresoObjetivo = 0f;
+        float esperaCierre = 0f;
+        while (progreso > 0.05f && esperaCierre < limiteEspera)
+        {
+            esperaCierre += Time.deltaTime;
+            yield return null;
+        }
 
         enTransicion = false;
     }
 
     private void OnDisable()
     {
+        armariosActivos.Remove(this);
         if (ocultoEnEsteArmario)
         {
             if (characterControllerJugador != null)
                 characterControllerJugador.enabled = true;
             ocultoEnEsteArmario = false;
             JugadorOculto = false;
+            FijarCamaraInterna = false;
             if (ArmarioActivo == this)
                 ArmarioActivo = null;
+        }
+        else if (ArmarioActivo == this)
+        {
+            FijarCamaraInterna = false;
         }
     }
 }
