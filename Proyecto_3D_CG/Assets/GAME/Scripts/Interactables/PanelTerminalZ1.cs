@@ -31,7 +31,7 @@ public class PanelTerminalZ1 : MonoBehaviour
 
     public void Abrir(Terminal terminalActual)
     {
-        if (Abierto || terminalActual == null || GameManager.Instance == null || Time.timeScale == 0f) return;
+        if (Abierto || terminalActual == null || GameManager.Instance == null || Time.timeScale == 0f || ArmarioEscondite.JugadorOculto) return;
         if (panel == null || gameObject.scene.name != "Zona1_Recepcion") return;
         terminal = terminalActual;
 
@@ -45,7 +45,13 @@ public class PanelTerminalZ1 : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (panelActivoZ1 != this || !PanelActivo || Keyboard.current == null) return;
+        if (panelActivoZ1 != this || !PanelActivo) return;
+        if (ArmarioEscondite.JugadorOculto)
+        {
+            Cerrar(false);
+            return;
+        }
+        if (Keyboard.current == null) return;
         Keyboard teclado = Keyboard.current;
         if (teclado.escapeKey.wasPressedThisFrame)
         {
@@ -66,12 +72,19 @@ public class PanelTerminalZ1 : MonoBehaviour
     public bool ProcesarLetra(string letra)
     {
         if (terminal == null || terminal.ReparacionTerminada()) return false;
+        Vector3 posAudio = terminal.transform.position;
         bool retirar = GameManager.Instance.cantidadModulosRetiradosZ1 < 3;
         if (!terminal.ProcesarModulo(letra))
         {
+            LabAudioFeedback.ReproducirAccesoDenegado(posAudio);
             ActualizarPanel("<color=#FF7777>Letra incorrecta. Inténtalo de nuevo.</color>");
             return false;
         }
+
+        if (terminal.ReparacionTerminada())
+            LabAudioFeedback.ReproducirSistemaRestaurado(posAudio);
+        else
+            LabAudioFeedback.ReproducirTono(posAudio, retirar ? 620f : 820f, 0.08f, 0.34f);
 
         string resultado = retirar ? "Módulo " + letra + " retirado." : "Módulo " + letra + " instalado.";
         ActualizarPanel(resultado);
@@ -92,6 +105,8 @@ public class PanelTerminalZ1 : MonoBehaviour
         if (panel != null) panel.SetActive(false);
         Cursor.lockState = bloqueoAnterior;
         Cursor.visible = cursorAnterior;
+        if (mostrarPrompt)
+            LabAudioFeedback.ReproducirPanelUI(false);
         if (mostrarPrompt && UIManager.Instance != null && terminal != null)
             UIManager.Instance.MostrarPrompt(terminal.mensajePrompt);
     }
@@ -106,7 +121,7 @@ public class PanelTerminalZ1 : MonoBehaviour
         if (terminal.ReparacionTerminada())
         {
             titulo.text = "SISTEMA RESTABLECIDO";
-            estado.text = "<color=#79F5AD>●  TERMINAL OPERATIVA</color>";
+            estado.text = "<color=#79F5AD>•  TERMINAL OPERATIVA</color>";
             instrucciones.text = "CÓDIGO DE ACCESO\n<color=#85FFB8><size=145%><b>" + terminal.codigoVisible + "</b></size></color>";
             mensaje.text = "Código disponible. Presiona ESC para cerrar.";
             CambiarTarjetas("");
@@ -117,13 +132,13 @@ public class PanelTerminalZ1 : MonoBehaviour
         bool retirando = juego.cantidadModulosRetiradosZ1 < 3;
         estado.text = retirando ? "<color=#FFD17A>01  /  RETIRAR MÓDULOS</color>" : "<color=#78E6F2>02  /  REINSTALAR MÓDULOS</color>";
         instrucciones.text = retirando
-            ? "Retira los módulos en orden: <b>A → B → C</b>"
-            : "Instala primero el último que retiraste: <b>C → B → A</b>";
+            ? "Retira los módulos en orden: <b>A -> B -> C</b>"
+            : "Instala primero el último que retiraste: <b>C -> B -> A</b>";
         string contenido = "";
         foreach (string modulo in juego.modulosTerminalZ1)
-            contenido += (contenido == "" ? "" : "   →   ") + modulo;
+            contenido += (contenido == "" ? "" : "   ->   ") + modulo;
         if (contenido == "") contenido = "VACÍA";
-        mensaje.text = "PILA  /  CIMA → FONDO:  <b>" + contenido + "</b>\n" + resultado;
+        mensaje.text = "PILA  /  CIMA -> FONDO:  <b>" + contenido + "</b>\n" + resultado;
         CambiarTarjetas(terminal.SiguienteModulo());
     }
 

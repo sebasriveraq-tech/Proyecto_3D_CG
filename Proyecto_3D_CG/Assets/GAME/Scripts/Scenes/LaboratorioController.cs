@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
-using UnityEngine.Rendering;
 using UnityEngine.UI;
 
 /// <summary>
@@ -53,8 +52,7 @@ public class LaboratorioController : MonoBehaviour
     {
         GarantizarAudioListenerUnico();
         CorregirVisibilidadYEvitarDesaparicionDeObjetos();
-        ConstruirMamparasVidrioContencion();
-        ConfigurarLucesParpadeantesTecho();
+        EnlazarLucesParpadeantesTecho();
         GarantizarCollidersMobiliarioZona2();
 
         if (interruptorEnergia == null)
@@ -94,34 +92,25 @@ public class LaboratorioController : MonoBehaviour
         audioAmbiente.playOnAwake = false;
         audioAmbiente.spatialBlend = 0f;
         audioAmbiente.mute = false;
-        audioAmbiente.volume = 0.16f;
-        cfg.RegistrarFuenteConVolumenBase(audioAmbiente, 0.16f);
+        float volBaseAmbiente = audioAmbiente.volume > 0.01f ? audioAmbiente.volume : 0.32f;
+        audioAmbiente.volume = volBaseAmbiente;
+        cfg.RegistrarFuenteConVolumenBase(audioAmbiente, volBaseAmbiente);
 
         if (audioAlarmaEmergencia == null)
         {
             Transform hijoAlarma = transform.Find("Audio_Alarma_Emergencia_Z2");
-            if (hijoAlarma == null)
-            {
-                GameObject goAlarma = new GameObject("Audio_Alarma_Emergencia_Z2");
-                goAlarma.transform.SetParent(transform, false);
-                audioAlarmaEmergencia = goAlarma.AddComponent<AudioSource>();
-            }
-            else
-            {
-                audioAlarmaEmergencia = hijoAlarma.GetComponent<AudioSource>() ?? hijoAlarma.gameObject.AddComponent<AudioSource>();
-            }
+            if (hijoAlarma != null)
+                audioAlarmaEmergencia = hijoAlarma.GetComponent<AudioSource>();
         }
 
-        if (audioAlarmaEmergencia.clip == null)
-            audioAlarmaEmergencia.clip = LabAudioFeedback.ObtenerAlarmaEmergenciaElectricaZ2();
-        audioAlarmaEmergencia.enabled = true;
-        audioAlarmaEmergencia.loop = true;
-        audioAlarmaEmergencia.playOnAwake = true;
-        audioAlarmaEmergencia.spatialBlend = 0f;
-        audioAlarmaEmergencia.mute = false;
-        const float volBaseEmergencia = 0.30f;
-        audioAlarmaEmergencia.volume = volBaseEmergencia;
-        cfg.RegistrarFuenteConVolumenBase(audioAlarmaEmergencia, volBaseEmergencia);
+        if (audioAlarmaEmergencia != null)
+        {
+            audioAlarmaEmergencia.Stop();
+            audioAlarmaEmergencia.loop = false;
+            audioAlarmaEmergencia.playOnAwake = false;
+            audioAlarmaEmergencia.volume = 0f;
+            audioAlarmaEmergencia.enabled = false;
+        }
     }
 
     private void Start()
@@ -153,8 +142,6 @@ public class LaboratorioController : MonoBehaviour
 
         if (audioAmbiente != null && !audioAmbiente.isPlaying)
             audioAmbiente.Play();
-        if (audioAlarmaEmergencia != null && !audioAlarmaEmergencia.isPlaying)
-            audioAlarmaEmergencia.Play();
 
         if (UIManager.Instance != null)
             UIManager.Instance.MostrarMensaje(
@@ -189,16 +176,15 @@ public class LaboratorioController : MonoBehaviour
 
     private void ActualizarEstadoAlarmaPorTiempo()
     {
-        if (audioAlarmaEmergencia == null) return;
-
         if (Time.timeScale == 0f && !alarmaPausadaPorTiempo)
         {
-            audioAlarmaEmergencia.Pause();
+            if (audioAlarmaEmergencia != null && audioAlarmaEmergencia.isPlaying) audioAlarmaEmergencia.Pause();
+            if (audioAmbiente != null) audioAmbiente.Pause();
             alarmaPausadaPorTiempo = true;
         }
         else if (Time.timeScale > 0f && alarmaPausadaPorTiempo)
         {
-            audioAlarmaEmergencia.UnPause();
+            if (audioAmbiente != null) audioAmbiente.UnPause();
             alarmaPausadaPorTiempo = false;
         }
     }
@@ -340,6 +326,24 @@ public class LaboratorioController : MonoBehaviour
             }
         }
 
+        GameObject mamparas = GameObject.Find("Mamparas_Vidrio_Contencion_Z2");
+        if (mamparas != null)
+        {
+            foreach (Transform modulo in mamparas.transform)
+            {
+                BoxCollider col = modulo != null ? modulo.GetComponent<BoxCollider>() : null;
+                if (col != null && modulo.GetComponent<NavMeshObstacle>() == null)
+                {
+                    NavMeshObstacle obs = modulo.gameObject.AddComponent<NavMeshObstacle>();
+                    obs.shape = NavMeshObstacleShape.Box;
+                    obs.center = col.center;
+                    obs.size = col.size;
+                    obs.carving = true;
+                    obs.carveOnlyStationary = true;
+                }
+            }
+        }
+
         foreach (Cajon contenedor in FindObjectsByType<Cajon>(FindObjectsSortMode.None))
         {
             BoxCollider col = contenedor != null ? contenedor.GetComponent<BoxCollider>() : null;
@@ -406,110 +410,6 @@ public class LaboratorioController : MonoBehaviour
     }
 
     // -------------------------------------------------------------------------
-    // MAMPARAS DE VIDRIO PARA LA ZONA DE CONTENCIÓN (CON ENTRADA AMPLIA DE 4.0m)
-    // -------------------------------------------------------------------------
-    private void ConstruirMamparasVidrioContencion()
-    {
-        if (GameObject.Find("Mamparas_Vidrio_Contencion_Z2") != null)
-            return;
-
-        GameObject raiz = new GameObject("Mamparas_Vidrio_Contencion_Z2");
-
-        Shader shLit = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-        Material matMarco = new Material(shLit)
-        {
-            name = "MAT_Marco_Contencion_Z2",
-            color = new Color(0.16f, 0.22f, 0.26f, 1f)
-        };
-        if (matMarco.HasProperty("_BaseColor")) matMarco.SetColor("_BaseColor", new Color(0.16f, 0.22f, 0.26f, 1f));
-        if (matMarco.HasProperty("_Metallic")) matMarco.SetFloat("_Metallic", 0.78f);
-        if (matMarco.HasProperty("_Smoothness")) matMarco.SetFloat("_Smoothness", 0.62f);
-
-        Shader shUnlit = Shader.Find("Universal Render Pipeline/Unlit") ?? shLit;
-        Material matVidrio = new Material(shUnlit)
-        {
-            name = "MAT_Vidrio_Contencion_Z2",
-            color = new Color(0.32f, 0.78f, 0.88f, 0.24f)
-        };
-        if (matVidrio.HasProperty("_BaseColor"))
-            matVidrio.SetColor("_BaseColor", new Color(0.32f, 0.78f, 0.88f, 0.24f));
-        if (matVidrio.HasProperty("_Surface")) matVidrio.SetFloat("_Surface", 1f);
-        if (matVidrio.HasProperty("_Blend")) matVidrio.SetFloat("_Blend", 0f);
-        if (matVidrio.HasProperty("_SrcBlend")) matVidrio.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
-        if (matVidrio.HasProperty("_DstBlend")) matVidrio.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
-        if (matVidrio.HasProperty("_ZWrite")) matVidrio.SetFloat("_ZWrite", 0f);
-        matVidrio.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-        matVidrio.SetShaderPassEnabled("DepthOnly", false);
-        matVidrio.SetShaderPassEnabled("SHADOWCASTER", false);
-        matVidrio.SetOverrideTag("RenderType", "Transparent");
-        matVidrio.renderQueue = (int)RenderQueue.Transparent;
-
-        CrearModuloMampara(raiz.transform, "Mampara_Sur", new Vector3(5.75f, 0f, 4.00f), 0f, 6.20f, 2.75f, matMarco, matVidrio);
-        CrearModuloMampara(raiz.transform, "Mampara_Norte", new Vector3(5.75f, 0f, 14.00f), 0f, 6.20f, 2.75f, matMarco, matVidrio);
-        CrearModuloMampara(raiz.transform, "Mampara_Oeste_Sur", new Vector3(2.65f, 0f, 5.50f), 90f, 3.00f, 2.75f, matMarco, matVidrio);
-        CrearModuloMampara(raiz.transform, "Mampara_Oeste_Norte", new Vector3(2.65f, 0f, 12.50f), 90f, 3.00f, 2.75f, matMarco, matVidrio);
-        CrearPiezaMampara(raiz.transform, "Dintel_Entrada_Contencion", new Vector3(2.65f, 2.65f, 9.00f), new Vector3(0.12f, 0.20f, 4.00f), matMarco, false);
-    }
-
-    private static void CrearModuloMampara(
-        Transform padre, string nombre, Vector3 posBase, float rotY, float ancho, float alto,
-        Material matMarco, Material matVidrio)
-    {
-        GameObject mod = new GameObject(nombre);
-        mod.transform.SetParent(padre, false);
-        mod.transform.localPosition = posBase;
-        mod.transform.localRotation = Quaternion.Euler(0f, rotY, 0f);
-
-        CrearPiezaMampara(mod.transform, "Zocalo_Inferior", new Vector3(0f, 0.14f, 0f), new Vector3(ancho, 0.28f, 0.10f), matMarco, false);
-        CrearPiezaMampara(mod.transform, "Viga_Superior", new Vector3(0f, alto - 0.08f, 0f), new Vector3(ancho, 0.16f, 0.10f), matMarco, false);
-
-        CrearPiezaMampara(mod.transform, "Poste_Izq", new Vector3(-ancho * 0.5f + 0.06f, alto * 0.5f, 0f), new Vector3(0.12f, alto, 0.12f), matMarco, false);
-        CrearPiezaMampara(mod.transform, "Poste_Der", new Vector3(ancho * 0.5f - 0.06f, alto * 0.5f, 0f), new Vector3(0.12f, alto, 0.12f), matMarco, false);
-        CrearPiezaMampara(mod.transform, "Poste_Central", new Vector3(0f, alto * 0.5f, 0f), new Vector3(0.09f, alto, 0.11f), matMarco, false);
-
-        GameObject vidrio = CrearPiezaMampara(
-            mod.transform, "Cristal_Blindado",
-            new Vector3(0f, 0.28f + (alto - 0.44f) * 0.5f, 0f),
-            new Vector3(Mathf.Max(0.2f, ancho - 0.24f), alto - 0.44f, 0.035f),
-            matVidrio, false);
-        MeshRenderer mrVidrio = vidrio.GetComponent<MeshRenderer>();
-        if (mrVidrio != null)
-        {
-            mrVidrio.shadowCastingMode = ShadowCastingMode.Off;
-            mrVidrio.receiveShadows = false;
-        }
-
-        BoxCollider col = mod.AddComponent<BoxCollider>();
-        col.center = new Vector3(0f, alto * 0.5f, 0f);
-        col.size = new Vector3(ancho, alto, 0.10f);
-
-        NavMeshObstacle obs = mod.AddComponent<NavMeshObstacle>();
-        obs.shape = NavMeshObstacleShape.Box;
-        obs.center = col.center;
-        obs.size = col.size;
-        obs.carving = true;
-        obs.carveOnlyStationary = true;
-    }
-
-    private static GameObject CrearPiezaMampara(
-        Transform padre, string nombre, Vector3 posLocal, Vector3 escalaLocal, Material mat, bool conCollider)
-    {
-        GameObject pieza = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        pieza.name = nombre;
-        pieza.transform.SetParent(padre, false);
-        pieza.transform.localPosition = posLocal;
-        pieza.transform.localScale = escalaLocal;
-        if (!conCollider)
-        {
-            Collider c = pieza.GetComponent<Collider>();
-            if (c != null) Destroy(c);
-        }
-        MeshRenderer mr = pieza.GetComponent<MeshRenderer>();
-        if (mr != null) mr.sharedMaterial = mat;
-        return pieza;
-    }
-
-    // -------------------------------------------------------------------------
     // PANEL VISUAL DE OBJETIVOS DEL NIVEL EN EL HUD (ENLAZADO EN INSPECTOR)
     // -------------------------------------------------------------------------
     public void ActualizarPanelObjetivosHUD(bool destelloSistemaRestaurado)
@@ -538,15 +438,15 @@ public class LaboratorioController : MonoBehaviour
             ? "<color=#46E896>[OK]</color> <color=#B8DCE8>2. Servidores (Oeste): Compuerta desbloqueada</color>"
             : (energiaOK
                 ? "<color=#F4C452>[ ]</color>  <color=#EAF2F7>2. Servidores (Oeste): Descifrar secuencia (4 símbolos)</color>"
-                : "<color=#7E93A4>[ ]  2. Servidores (Oeste): Desbloquear compuerta (requiere energía)</color>");
+                : "<color=#B8CDD9>[ ]  2. Servidores (Oeste): Desbloquear compuerta (requiere energía)</color>");
 
         string l3 = credencialOK
             ? "<color=#46E896>[OK]</color> <color=#B8DCE8>3. Contención (Este): Credencial obtenida</color>"
-            : "<color=#D2E0EA>[ ]</color>  <color=#C6D6E2>3. Contención (Este): Recuperar credencial en el cofre</color>";
+            : "<color=#E2EEF5>[ ]</color>  <color=#E8F3FA>3. Contención (Este): Recuperar credencial en el cofre</color>";
 
         string l4 = (energiaOK && codigoOK && credencialOK)
             ? "<color=#46E896><b>[>>] 4. Salida (Norte): Cruzar hacia el Sector 3</b></color>"
-            : "<color=#7E93A4>[ ]  4. Salida (Norte): Abrir compuerta principal</color>";
+            : "<color=#B8CDD9>[ ]  4. Salida (Norte): Abrir compuerta principal</color>";
 
         textoObjetivoHUD.text = $"{l1}\n{l2}\n{l3}\n{l4}";
 
@@ -578,67 +478,26 @@ public class LaboratorioController : MonoBehaviour
     // -------------------------------------------------------------------------
     // LUCES PARPADEANTES EN EL TECHO Y CHISPAS DE CORTOCIRCUITO
     // -------------------------------------------------------------------------
-    private void ConfigurarLucesParpadeantesTecho()
+    private void EnlazarLucesParpadeantesTecho()
     {
         lucesTechoParpadeantes.Clear();
 
-        CrearLuzTechoParpadeante("Luz_Fallo_Servidores_Z2", new Vector3(-5.40f, 4.72f, 9.60f), 3.17f, new Vector3(-8.15f, 2.15f, 10.40f));
-        CrearLuzTechoParpadeante("Luz_Fallo_Pasillo_Z2", new Vector3(0.00f, 4.72f, 9.60f), 11.41f, new Vector3(0.00f, 4.82f, 9.60f));
-        CrearLuzTechoParpadeante("Luz_Fallo_Energia_Z2", new Vector3(-4.60f, 4.72f, 17.80f), 27.83f, new Vector3(4.50f, 1.25f, 18.10f));
+        EnlazarLuzTechoParpadeante("Luz_Fallo_Servidores_Z2", 3.17f, new Vector3(-8.15f, 2.15f, 10.40f));
+        EnlazarLuzTechoParpadeante("Luz_Fallo_Pasillo_Z2", 11.41f, new Vector3(0.00f, 4.82f, 9.60f));
+        EnlazarLuzTechoParpadeante("Luz_Fallo_Energia_Z2", 27.83f, new Vector3(4.50f, 1.25f, 18.10f));
     }
 
-    private void CrearLuzTechoParpadeante(string nombre, Vector3 posicion, float semilla, Vector3 posChispa)
+    private void EnlazarLuzTechoParpadeante(string nombre, float semilla, Vector3 posChispa)
     {
         GameObject go = GameObject.Find(nombre);
-        Light luz;
-        Renderer rend;
-        Material mat;
+        if (go == null) return;
 
-        if (go == null)
-        {
-            go = new GameObject(nombre);
-            go.transform.position = posicion;
-            luz = go.AddComponent<Light>();
-            luz.type = LightType.Point;
-            luz.range = 13.5f;
-            luz.intensity = 2.4f;
-            luz.color = new Color(0.38f, 0.86f, 1f);
-            luz.shadows = LightShadows.None;
+        Light luz = go.GetComponent<Light>();
+        if (luz == null) return;
 
-            Shader shLit = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            if (shLit != null)
-            {
-                GameObject soporte = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                soporte.name = "Soporte_Luminaria_Fallo";
-                soporte.transform.SetParent(go.transform, false);
-                soporte.transform.localPosition = new Vector3(0f, 0.195f, 0f);
-                soporte.transform.localScale = new Vector3(0.30f, 0.03f, 1.65f);
-                Collider colSoporte = soporte.GetComponent<Collider>();
-                if (colSoporte != null) Destroy(colSoporte);
-                Renderer rendSoporte = soporte.GetComponent<Renderer>();
-                Material matSoporte = new Material(shLit) { name = "MAT_Soporte_" + nombre, color = new Color(0.12f, 0.15f, 0.18f, 1f) };
-                if (matSoporte.HasProperty("_BaseColor")) matSoporte.SetColor("_BaseColor", new Color(0.12f, 0.15f, 0.18f, 1f));
-                if (rendSoporte != null) rendSoporte.sharedMaterial = matSoporte;
-            }
-
-            GameObject tubo = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            tubo.name = "Luminaria_Fallo_Visual";
-            tubo.transform.SetParent(go.transform, false);
-            tubo.transform.localPosition = new Vector3(0f, 0.175f, 0f);
-            tubo.transform.localScale = new Vector3(0.24f, 0.045f, 1.55f);
-            Collider c = tubo.GetComponent<Collider>();
-            if (c != null) Destroy(c);
-            rend = tubo.GetComponent<Renderer>();
-            Shader sh = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
-            mat = sh != null ? new Material(sh) { name = "MAT_" + nombre } : null;
-            if (rend != null && mat != null) rend.sharedMaterial = mat;
-        }
-        else
-        {
-            luz = go.GetComponent<Light>() ?? go.AddComponent<Light>();
-            rend = go.GetComponentInChildren<Renderer>();
-            mat = rend != null ? rend.sharedMaterial : null;
-        }
+        Transform tuboTr = go.transform.Find("Luminaria_Fallo_Visual");
+        Renderer rend = tuboTr != null ? tuboTr.GetComponent<Renderer>() : go.GetComponentInChildren<Renderer>();
+        Material mat = rend != null ? rend.material : null;
 
         lucesTechoParpadeantes.Add(new LuzTechoParpadeante
         {
@@ -759,8 +618,6 @@ public class LaboratorioController : MonoBehaviour
         ActualizarIluminacion();
         if (chispasEnergia != null) chispasEnergia.Play();
         if (chispasEnergia != null) LabAudioFeedback.ReproducirDescarga(chispasEnergia.transform.position);
-        if (audioAlarmaEmergencia != null)
-            GameSettingsManager.GarantizarInstancia().RegistrarFuenteConVolumenBase(audioAlarmaEmergencia, 0.20f);
         if (GameManager.Instance != null)
             GameManager.Instance.CompletarObjetivo("energia_z2");
         ActualizarPanelObjetivosHUD(true);
@@ -774,8 +631,6 @@ public class LaboratorioController : MonoBehaviour
     {
         EnergiaRestaurada = false;
         ActualizarIluminacion();
-        if (audioAlarmaEmergencia != null)
-            GameSettingsManager.GarantizarInstancia().RegistrarFuenteConVolumenBase(audioAlarmaEmergencia, 0.30f);
         if (GameManager.Instance != null)
             GameManager.Instance.objetivos["energia_z2"] = false;
         ActualizarPanelObjetivosHUD(false);

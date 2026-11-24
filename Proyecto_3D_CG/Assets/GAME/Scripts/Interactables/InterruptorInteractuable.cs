@@ -17,14 +17,20 @@ public class InterruptorInteractuable : Interactable
     [Header("UI Zona 2")]
     public PanelMiniJuegoZ2 panelCircuitosZ2;
 
-    private Light luzEstado;
-    private Transform balizaFlotanteZ2;
-    private Renderer rendererBalizaZ2;
-    private Renderer rendererPantallaZ2;
+    [Header("Indicadores Zona 2")]
+    public Light luzEstado;
+    public Transform balizaFlotanteZ2;
+    public Renderer rendererBalizaZ2;
+    public Renderer rendererPantallaZ2;
+
+    private float balizaBaseY = 1.68f;
 
     private void Awake()
     {
         IntegrarConConsola3D();
+        if (balizaFlotanteZ2 != null)
+            balizaBaseY = balizaFlotanteZ2.localPosition.y;
+
         if (gameObject.scene.name == "Zona2_Laboratorio")
         {
             if (panelCircuitosZ2 != null)
@@ -36,7 +42,6 @@ public class InterruptorInteractuable : Interactable
                     CompletarReconexionCircuitos,
                     transform);
             }
-            CrearIndicadorClaridadZ2();
         }
         ActualizarVisual();
     }
@@ -45,8 +50,9 @@ public class InterruptorInteractuable : Interactable
     {
         if (balizaFlotanteZ2 != null)
         {
-            float yOffset = 1.68f + Mathf.Sin(Time.unscaledTime * 3.2f) * 0.06f;
-            balizaFlotanteZ2.localPosition = new Vector3(0f, yOffset, -0.05f);
+            float yOffset = balizaBaseY + Mathf.Sin(Time.unscaledTime * 3.2f) * 0.06f;
+            Vector3 p = balizaFlotanteZ2.localPosition;
+            balizaFlotanteZ2.localPosition = new Vector3(p.x, yOffset, p.z);
             balizaFlotanteZ2.Rotate(0f, 55f * Time.unscaledDeltaTime, 0f, Space.Self);
         }
     }
@@ -110,72 +116,28 @@ public class InterruptorInteractuable : Interactable
             }
         }
 
-        Transform luzExistente = transform.Find("Luz_Estado_Interruptor");
-        if (luzExistente == null)
+        if (luzEstado == null)
         {
-            GameObject goLuz = new GameObject("Luz_Estado_Interruptor");
-            goLuz.transform.SetParent(transform, false);
-            goLuz.transform.localPosition = tieneConsola3D
-                ? new Vector3(0f, 1.05f, -0.36f)
-                : new Vector3(0f, 0.3f, -0.28f);
-            luzEstado = goLuz.AddComponent<Light>();
-            luzEstado.type = LightType.Point;
-            luzEstado.range = 3.2f;
-            luzEstado.intensity = 1.15f;
-            luzEstado.shadows = LightShadows.None;
+            Transform luzExistente = transform.Find("Luz_Estado_Interruptor");
+            if (luzExistente != null)
+                luzEstado = luzExistente.GetComponent<Light>();
         }
-        else
-        {
-            luzEstado = luzExistente.GetComponent<Light>();
-        }
-    }
-
-    private void CrearIndicadorClaridadZ2()
-    {
-        if (transform.Find("Baliza_Terminal_Energia_Z2") != null) return;
-
-        Shader sh = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-
-        // Pantalla luminosa en el monitor de la consola de energía
-        GameObject pantallaObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        pantallaObj.name = "Pantalla_Luminosa_Energia_Z2";
-        pantallaObj.transform.SetParent(transform, false);
-        pantallaObj.transform.localPosition = new Vector3(0f, 1.06f, -0.18f);
-        pantallaObj.transform.localRotation = Quaternion.Euler(-24f, 0f, 0f);
-        pantallaObj.transform.localScale = new Vector3(0.42f, 0.24f, 0.02f);
-        Collider colP = pantallaObj.GetComponent<Collider>();
-        if (colP != null) Destroy(colP);
-        rendererPantallaZ2 = pantallaObj.GetComponent<Renderer>();
-        if (sh != null && rendererPantallaZ2 != null)
-            rendererPantallaZ2.sharedMaterial = new Material(sh) { name = "MAT_Pantalla_Energia_Z2" };
-
-        // Baliza flotante 3D (rombo indicador sobre el terminal)
-        GameObject balizaObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        balizaObj.name = "Baliza_Terminal_Energia_Z2";
-        balizaObj.transform.SetParent(transform, false);
-        balizaObj.transform.localPosition = new Vector3(0f, 1.68f, -0.05f);
-        balizaObj.transform.localRotation = Quaternion.Euler(45f, 45f, 0f);
-        balizaObj.transform.localScale = new Vector3(0.16f, 0.16f, 0.16f);
-        Collider colB = balizaObj.GetComponent<Collider>();
-        if (colB != null) Destroy(colB);
-        balizaFlotanteZ2 = balizaObj.transform;
-        rendererBalizaZ2 = balizaObj.GetComponent<Renderer>();
-        if (sh != null && rendererBalizaZ2 != null)
-            rendererBalizaZ2.sharedMaterial = new Material(sh) { name = "MAT_Baliza_Energia_Z2" };
     }
 
     public override void Interactuar()
     {
+        if (ArmarioEscondite.JugadorOculto) return;
+
         if (panelCircuitosZ2 != null)
         {
-            ReproducirSonidoInteraccion(audioSource);
+            LabAudioFeedback.ReproducirInterruptor(transform.position, true, audioSource);
             panelCircuitosZ2.MarcarCompletadoExternamente(encendido);
             panelCircuitosZ2.Abrir();
             return;
         }
 
         encendido = !encendido;
-        ReproducirSonidoInteraccion(audioSource);
+        LabAudioFeedback.ReproducirInterruptor(transform.position, encendido, audioSource);
         if (encendido) alEncender?.Invoke();
         else alApagar?.Invoke();
         ActualizarVisual();
@@ -218,8 +180,9 @@ public class InterruptorInteractuable : Interactable
 
     private static void AplicarColorEmisivo(Renderer r, Color c)
     {
-        if (r == null || r.sharedMaterial == null) return;
-        Material m = r.sharedMaterial;
+        if (r == null) return;
+        Material m = r.material;
+        if (m == null) return;
         m.color = c;
         if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
         m.EnableKeyword("_EMISSION");

@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -28,6 +29,10 @@ public class GameManager : MonoBehaviour
     public string escenaActual;                // zona donde esta el jugador
     public float tiempoJugadoSegundos;         // tiempo total de partida
 
+    private DatosGuardado checkpointZonaActual;
+    private bool notificarCheckpointAlEntrar;
+    private Coroutine rutinaNotificacionCheckpoint;
+
    
     // AWAKE: se ejecuta UNA vez, antes de Start, al cargar la escena. Aqui se configura el Singleton y se evita el duplicado.
     
@@ -43,13 +48,70 @@ public class GameManager : MonoBehaviour
 
    
         Instance = this;
-        DontDestroyOnLoad(gameObject); 
+        DontDestroyOnLoad(gameObject);
+        SceneManager.sceneLoaded += AlCargarEscena;
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            SceneManager.sceneLoaded -= AlCargarEscena;
     }
 
     private void Start()
     {
-       
-        escenaActual = SceneManager.GetActiveScene().name;
+        Scene escena = SceneManager.GetActiveScene();
+        escenaActual = escena.name;
+        if (EsEscenaJugable(escena.name) && checkpointZonaActual == null)
+            InicializarCheckpointZona(escena.name);
+    }
+
+    private static bool EsEscenaJugable(string nombre)
+    {
+        return nombre == "Zona1_Recepcion"
+            || nombre == "Zona2_Laboratorio"
+            || nombre == "Zona3_Control";
+    }
+
+    private void AlCargarEscena(Scene escena, LoadSceneMode modo)
+    {
+        if (!EsEscenaJugable(escena.name)) return;
+
+        escenaActual = escena.name;
+        InicializarCheckpointZona(escena.name);
+    }
+
+    private void InicializarCheckpointZona(string nombreEscena)
+    {
+        if (checkpointZonaActual == null || checkpointZonaActual.escenaActual != nombreEscena)
+        {
+            DatosGuardado disco = SaveManager.LeerDatos();
+            if (disco != null && disco.escenaActual == nombreEscena)
+            {
+                checkpointZonaActual = disco;
+            }
+            else
+            {
+                checkpointZonaActual = SaveManager.CapturarEstadoActual(nombreEscena);
+                SaveManager.GuardarDatos(checkpointZonaActual);
+                notificarCheckpointAlEntrar = true;
+            }
+        }
+
+        if (notificarCheckpointAlEntrar)
+        {
+            notificarCheckpointAlEntrar = false;
+            if (rutinaNotificacionCheckpoint != null) StopCoroutine(rutinaNotificacionCheckpoint);
+            rutinaNotificacionCheckpoint = StartCoroutine(MostrarNotificacionCheckpoint());
+        }
+    }
+
+    private IEnumerator MostrarNotificacionCheckpoint()
+    {
+        yield return new WaitForSecondsRealtime(0.25f);
+        if (UIManager.Instance != null)
+            UIManager.Instance.MostrarToastCheckpoint("Checkpoint guardado");
+        rutinaNotificacionCheckpoint = null;
     }
 
     private void Update()
@@ -94,7 +156,12 @@ public class GameManager : MonoBehaviour
     public void CambiarEscena(string nombreEscena)
     {
         escenaActual = nombreEscena;
-        SaveManager.Guardar();            // checkpoint: se guarda justo antes de salir de la zona
+        if (EsEscenaJugable(nombreEscena))
+        {
+            checkpointZonaActual = SaveManager.CapturarEstadoActual(nombreEscena);
+            SaveManager.GuardarDatos(checkpointZonaActual);
+            notificarCheckpointAlEntrar = true;
+        }
         SceneManager.LoadScene(nombreEscena);
     }
 
@@ -110,14 +177,30 @@ public class GameManager : MonoBehaviour
     }
 
   
-    // REINICIO: al morir se recupera el progreso del ultimo checkpoint y se recarga la zona actual.
+    // REINICIO: al morir se recupera el progreso previo al inicio de la zona y se recarga la zona actual.
 
     public void ReiniciarDesdeCheckpoint()
     {
-        SaveManager.Cargar();             // inventario, codigos, puertas y vida vuelven al checkpoint
+        string zonaActual = SceneManager.GetActiveScene().name;
+        DatosGuardado snap = (checkpointZonaActual != null && checkpointZonaActual.escenaActual == zonaActual)
+            ? checkpointZonaActual
+            : null;
+
+        if (snap == null)
+        {
+            DatosGuardado disco = SaveManager.LeerDatos();
+            if (disco != null && disco.escenaActual == zonaActual)
+                snap = disco;
+        }
+
+        if (snap != null)
+            SaveManager.AplicarDatos(snap, true);
+
         vidaJugador = 100;                // se revive con vida completa
-        escenaActual = SceneManager.GetActiveScene().name; // se recarga la zona donde murio
-        SceneManager.LoadScene(escenaActual);
+        escenaActual = zonaActual;        // se recarga la zona donde murio
+        notificarCheckpointAlEntrar = false;
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(zonaActual);
     }
 
     // CONTINUAR: el menu lee el JSON y abre la zona donde se quedo el jugador.
@@ -129,9 +212,12 @@ public class GameManager : MonoBehaviour
 
     public void ContinuarPartida()
     {
-        if (!SaveManager.ExisteGuardado()) return;
+        DatosGuardado datos = SaveManager.LeerDatos();
+        if (datos == null) return;
 
-        SaveManager.Cargar();             // restaura el estado y la escena guardada
+        checkpointZonaActual = datos;
+        SaveManager.AplicarDatos(datos, false);
+        notificarCheckpointAlEntrar = false;
         SceneManager.LoadScene(escenaActual);
     }
 
@@ -148,6 +234,8 @@ public class GameManager : MonoBehaviour
         objetivos.Clear();
         tiempoJugadoSegundos = 0f;
         muertes = 0;
+        checkpointZonaActual = null;
+        notificarCheckpointAlEntrar = false;
         SaveManager.BorrarGuardado();
     }
 }

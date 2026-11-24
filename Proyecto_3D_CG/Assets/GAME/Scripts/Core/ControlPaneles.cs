@@ -58,14 +58,22 @@ public class ControlPaneles : MonoBehaviour
         if (Keyboard.current.iKey.wasPressedThisFrame && Time.timeScale > 0f && !PanelTerminalZ1.Abierto)
         {
             if (UIManager.Instance.panelInventario.activeSelf)
+            {
+                UIManager.Instance.ReproducirClicUI(0.92f);
                 UIManager.Instance.MostrarHUD();
+            }
             else if (UIManager.Instance.panelHUD.activeSelf)
+            {
+                UIManager.Instance.ReproducirClicUI(1.08f);
                 UIManager.Instance.MostrarInventario();
+            }
         }
     }
 
     private void IniciarPartidaNueva()
     {
+        if (UIManager.Instance != null) UIManager.Instance.ReproducirClicUI(1.08f);
+
         // Sin GameManager (por ejemplo si se abre la Zona 1 directo) solo se carga la escena.
         if (GameManager.Instance == null)
         {
@@ -82,6 +90,7 @@ public class ControlPaneles : MonoBehaviour
         // Si no hay archivo no se hace nada: en la primera partida todavia no existe.
         if (GameManager.Instance == null || !GameManager.Instance.HayPartidaGuardada()) return;
 
+        if (UIManager.Instance != null) UIManager.Instance.ReproducirClicUI(1.08f);
         GameManager.Instance.ContinuarPartida();
     }
 
@@ -123,6 +132,7 @@ public class ControlPaneles : MonoBehaviour
 
     public void CerrarAjustes()
     {
+        if (UIManager.Instance != null) UIManager.Instance.ReproducirClicUI(0.92f);
         if (AjustesUI.Instance != null)
             AjustesUI.Instance.CerrarAjustes();
         else if (UIManager.Instance != null)
@@ -131,7 +141,6 @@ public class ControlPaneles : MonoBehaviour
 
     public void BotonReanudar()
     {
-        if (GameSettingsManager.Instance != null) GameSettingsManager.Instance.ReproducirFeedbackUI();
         Reanudar();
     }
 
@@ -152,6 +161,7 @@ public class ControlPaneles : MonoBehaviour
     // DERROTA: vuelve al ultimo checkpoint y recarga la zona con vida completa.
     public void Reintentar()
     {
+        if (UIManager.Instance != null) UIManager.Instance.ReproducirClicUI(1.06f);
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         Time.timeScale = 1f;   // el juego se congelo al mostrar el panel; hay que devolver el tiempo
 
@@ -164,6 +174,7 @@ public class ControlPaneles : MonoBehaviour
     // VICTORIA: empieza una partida limpia desde la Zona 1.
     public void JugarDeNuevo()
     {
+        if (UIManager.Instance != null) UIManager.Instance.ReproducirClicUI(1.06f);
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         Time.timeScale = 1f;
         IniciarPartidaNueva();
@@ -172,6 +183,7 @@ public class ControlPaneles : MonoBehaviour
     // Los dos paneles: vuelve al menu principal.
     public void VolverAlMenu()
     {
+        if (UIManager.Instance != null) UIManager.Instance.ReproducirClicUI(0.92f);
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.None;   // el menu principal usa el mouse
@@ -181,6 +193,7 @@ public class ControlPaneles : MonoBehaviour
 
     private void Pausar()
     {
+        if (UIManager.Instance != null) UIManager.Instance.ReproducirClicUI(1f);
         Time.timeScale = 0f;                 // congela el juego
         UIManager.Instance.MostrarPausa();
         Cursor.lockState = CursorLockMode.None;   // libera el mouse para poder usar el menu
@@ -189,6 +202,7 @@ public class ControlPaneles : MonoBehaviour
 
     private void Reanudar()
     {
+        if (UIManager.Instance != null) UIManager.Instance.ReproducirClicUI(0.90f);
         Time.timeScale = 1f;                 // devuelve el tiempo normal
         UIManager.Instance.MostrarHUD();
         Cursor.lockState = CursorLockMode.Locked; // vuelve a bloquear el mouse en el centro

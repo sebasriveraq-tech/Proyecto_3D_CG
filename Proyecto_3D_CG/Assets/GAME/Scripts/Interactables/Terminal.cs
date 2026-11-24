@@ -13,14 +13,17 @@ public class Terminal : Interactable
     [Header("UI Zona 2")]
     public PanelMiniJuegoZ2 panelServidorZ2;
 
+    [Header("Indicadores Zona 2")]
+    public Light luzEstadoZ2;
+    public Renderer ledEstadoZ2;
+    public Transform balizaFlotanteZ2;
+    public Renderer rendererBalizaZ2;
+
     private const string objetivoReparacionZ1 = "terminal_reparada_z1";
     private readonly string[] modulosZ1 = { "A", "B", "C" };
     private PanelTerminalZ1 panelReparacion;
     private PantallaTerminalZ1 pantalla;
-    private Light luzEstadoZ2;
-    private Renderer ledEstadoZ2;
-    private Transform balizaFlotanteZ2;
-    private Renderer rendererBalizaZ2;
+    private float balizaBaseY = 0.85f;
 
     private void Start()
     {
@@ -38,6 +41,9 @@ public class Terminal : Interactable
 
         if (gameObject.scene.name == "Zona2_Laboratorio")
         {
+            if (balizaFlotanteZ2 != null)
+                balizaBaseY = balizaFlotanteZ2.localPosition.y;
+
             bool yaTieneCodigo = GameManager.Instance != null && GameManager.Instance.TieneCodigo(idCodigo);
             if (panelServidorZ2 != null)
             {
@@ -79,8 +85,9 @@ public class Terminal : Interactable
 
         if (balizaFlotanteZ2 != null)
         {
-            float yOffset = 0.85f + Mathf.Sin(Time.unscaledTime * 3.2f) * 0.05f;
-            balizaFlotanteZ2.localPosition = new Vector3(0f, yOffset, 0f);
+            float yOffset = balizaBaseY + Mathf.Sin(Time.unscaledTime * 3.2f) * 0.05f;
+            Vector3 p = balizaFlotanteZ2.localPosition;
+            balizaFlotanteZ2.localPosition = new Vector3(p.x, yOffset, p.z);
             balizaFlotanteZ2.Rotate(0f, 55f * Time.unscaledDeltaTime, 0f, Space.Self);
         }
     }
@@ -99,41 +106,6 @@ public class Terminal : Interactable
             box.size = new Vector3(0.88f, 1.05f, 1.25f);
         }
 
-        Shader sh = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-
-        GameObject ledObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        ledObj.name = "Indicador_Pantalla_Z2";
-        ledObj.transform.SetParent(transform, false);
-        ledObj.transform.localPosition = new Vector3(0f, 0.28f, -0.20f);
-        ledObj.transform.localRotation = Quaternion.Euler(-24f, 0f, 0f);
-        ledObj.transform.localScale = new Vector3(0.44f, 0.22f, 0.02f);
-        Collider col = ledObj.GetComponent<Collider>();
-        if (col != null) Destroy(col);
-        ledEstadoZ2 = ledObj.GetComponent<Renderer>();
-        if (sh != null && ledEstadoZ2 != null)
-            ledEstadoZ2.sharedMaterial = new Material(sh) { name = "MAT_Estado_Terminal_Z2" };
-
-        GameObject balizaObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        balizaObj.name = "Baliza_Terminal_Servidores_Z2";
-        balizaObj.transform.SetParent(transform, false);
-        balizaObj.transform.localPosition = new Vector3(0f, 0.85f, 0f);
-        balizaObj.transform.localRotation = Quaternion.Euler(45f, 45f, 0f);
-        balizaObj.transform.localScale = new Vector3(0.16f, 0.16f, 0.16f);
-        Collider colB = balizaObj.GetComponent<Collider>();
-        if (colB != null) Destroy(colB);
-        balizaFlotanteZ2 = balizaObj.transform;
-        rendererBalizaZ2 = balizaObj.GetComponent<Renderer>();
-        if (sh != null && rendererBalizaZ2 != null)
-            rendererBalizaZ2.sharedMaterial = new Material(sh) { name = "MAT_Baliza_Servidores_Z2" };
-
-        GameObject goLuz = new GameObject("Luz_Pantalla_Z2");
-        goLuz.transform.SetParent(transform, false);
-        goLuz.transform.localPosition = new Vector3(0f, 0.42f, -0.35f);
-        luzEstadoZ2 = goLuz.AddComponent<Light>();
-        luzEstadoZ2.type = LightType.Point;
-        luzEstadoZ2.range = 3.2f;
-        luzEstadoZ2.intensity = 1.15f;
-        luzEstadoZ2.shadows = LightShadows.None;
         ActualizarIndicadorVisualZ2();
     }
 
@@ -168,8 +140,9 @@ public class Terminal : Interactable
 
     private static void AplicarColor(Renderer r, Color c)
     {
-        if (r == null || r.sharedMaterial == null) return;
-        Material mat = r.sharedMaterial;
+        if (r == null) return;
+        Material mat = r.material;
+        if (mat == null) return;
         mat.color = c;
         if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c);
         mat.EnableKeyword("_EMISSION");
@@ -178,16 +151,20 @@ public class Terminal : Interactable
 
     public override void Interactuar()
     {
-        ReproducirSonidoInteraccion();
+        if (ArmarioEscondite.JugadorOculto) return;
+
         if (requiereEnergia &&
             (laboratorio == null || !laboratorio.PuedeConsultarTerminal()))
         {
+            LabAudioFeedback.ReproducirAccesoDenegado(transform.position);
             if (UIManager.Instance != null)
                 UIManager.Instance.MostrarMensaje(
                     "<color=#FFAD3B><b>TERMINAL SIN CORRIENTE:</b></color> Dirígete al Terminal de Energía (Norte) para restaurar los circuitos.",
                     3.2f);
             return;
         }
+
+        ReproducirSonidoInteraccion();
 
         GameManager juego = GameManager.Instance;
         if (juego == null) return;

@@ -30,7 +30,7 @@ public class Puerta : Interactable
         {
             if (UIManager.Instance != null)
                 UIManager.Instance.MostrarMensaje("Necesitas: " + idLlave.Replace("_", " "));
-            ReproducirSonidoInteraccion();
+            LabAudioFeedback.ReproducirAccesoDenegado(transform.position);
             return;
         }
 
@@ -39,7 +39,7 @@ public class Puerta : Interactable
         {
             if (UIManager.Instance != null)
                 UIManager.Instance.MostrarMensaje("Consulta la terminal para obtener el código de acceso");
-            ReproducirSonidoInteraccion();
+            LabAudioFeedback.ReproducirAccesoDenegado(transform.position);
             return;
         }
 

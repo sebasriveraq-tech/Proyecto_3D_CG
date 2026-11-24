@@ -276,6 +276,15 @@ MonoBehaviour:
   gravedad: -20
   camara: {fileID: 2325990461058369334}
   sensibilidadMouse: 0.12
+  pasosConcreto:
+  - {fileID: 8300000, guid: 1248ae0fe37f1504381a627d8cb17dc5, type: 3}
+  - {fileID: 8300000, guid: 8ba5463857a157b4f80b2dd3f63e3a6d, type: 3}
+  - {fileID: 8300000, guid: 1b93e902555ee28438d659e884131101, type: 3}
+  - {fileID: 8300000, guid: aebea7893f65c6949b716167360d3af1, type: 3}
+  - {fileID: 8300000, guid: 5cbaa0865f0383b4299618178ce46361, type: 3}
+  intervaloPasoCaminar: 0.5
+  intervaloPasoCorrer: 0.32
+  volumenPasos: 0.34
 --- !u!114 &3339574198794234293
 MonoBehaviour:
   m_ObjectHideFlags: 0

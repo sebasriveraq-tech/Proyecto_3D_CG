@@ -22,7 +22,7 @@ public class Computadora : Interactable
 
     public override void Interactuar()
     {
-        if (usada || abierta) return;
+        if (ArmarioEscondite.JugadorOculto || usada || abierta) return;
 
         if (UIManager.Instance == null || UIManager.Instance.panelTeclado == null || controlador == null)
         {
