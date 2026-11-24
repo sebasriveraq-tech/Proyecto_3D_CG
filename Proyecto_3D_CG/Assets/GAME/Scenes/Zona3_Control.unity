@@ -1338,6 +1338,10 @@ PrefabInstance:
       propertyPath: m_text
       value: Borrar
       objectReference: {fileID: 0}
+    - target: {fileID: 1961382810800882777, guid: a7563cbdda6264843a9787c8525fee3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2335451973810217127, guid: a7563cbdda6264843a9787c8525fee3d, type: 3}
       propertyPath: m_Pivot.x
       value: 0
@@ -1429,6 +1433,10 @@ PrefabInstance:
     - target: {fileID: 2335451973810217127, guid: a7563cbdda6264843a9787c8525fee3d, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2483824387902616504, guid: a7563cbdda6264843a9787c8525fee3d, type: 3}
+      propertyPath: m_Name
+      value: Panel_Teclado_z3
       objectReference: {fileID: 0}
     - target: {fileID: 2483824387902616504, guid: a7563cbdda6264843a9787c8525fee3d, type: 3}
       propertyPath: m_IsActive

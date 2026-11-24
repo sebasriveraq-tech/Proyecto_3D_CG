@@ -28,7 +28,8 @@ public class Terminal : Interactable
         {
             // Estos objetos solo se crean para la terminal de la Zona 1.
             mensajePrompt = "Presiona E para usar la terminal";
-            panelReparacion = gameObject.AddComponent<PanelTerminalZ1>();
+            if (UIManager.Instance != null)
+                panelReparacion = UIManager.Instance.GetComponent<PanelTerminalZ1>();
             pantalla = gameObject.AddComponent<PantallaTerminalZ1>();
             pantalla.Configurar(this);
             ActualizarPantalla();

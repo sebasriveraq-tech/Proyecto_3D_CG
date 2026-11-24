@@ -16,8 +16,17 @@ public class UIManager : MonoBehaviour
     public GameObject panelPausa;
     public GameObject panelInventario;
     public GameObject panelVictoria;
+    [SerializeField] private TMP_Text estadisticasVictoria;
+    [SerializeField] private TMP_Text rutaVictoria;
     public GameObject panelDerrota;
+    [SerializeField] private TMP_Text estadisticasDerrota;
+    [SerializeField] private TMP_Text rutaDerrota;
     public PanelTeclado panelTeclado;
+    [SerializeField] private GameObject panelesZona2;
+    [SerializeField] private GameObject panelObjetivosZona1;
+    [SerializeField] private TMP_Text textoObjetivosZona1;
+    [SerializeField] private GameObject panelObjetivosZona3;
+    [SerializeField] private TMP_Text textoObjetivosZona3;
 
 
     [Header("Elementos del HUD")]
@@ -44,6 +53,13 @@ public class UIManager : MonoBehaviour
     [SerializeField] private float intensidadPulsoDanio = 0.07f;
     [SerializeField] private float umbralVidaCritica = 0.2f;
 
+    private GameObject panelObjetivosActual;
+    private TMP_Text textoObjetivosActual;
+    private Scene3Controller controlZona3;
+    private (bool primero, bool credencial, bool segundo)? progresoObjetivos;
+    private bool esZona3;
+
+    private bool resultadoFinalRegistrado;
     private Coroutine rutinaMensaje;
     private Coroutine rutinaTransicionVida;
     private Coroutine rutinaPulsoDanio;
@@ -58,6 +74,8 @@ public class UIManager : MonoBehaviour
     {
         // Cada escena tiene UNA instancia del prefab Canvas.
         Instance = this;
+        if (panelesZona2 != null)
+            panelesZona2.SetActive(gameObject.scene.name == "Zona2_Laboratorio");
 
         // Los fondos nacen ocultos: solo aparecen cuando hay texto.
         if (fondoMensaje != null) fondoMensaje.SetActive(false);
@@ -71,6 +89,7 @@ public class UIManager : MonoBehaviour
 
     private void LateUpdate()
     {
+        ActualizarObjetivosDeZona();
         bool estadoCritico = proporcionVida <= umbralVidaCritica;
         float pulso = estadoCritico
             ? 0.86f + 0.14f * (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 6f))
@@ -93,6 +112,16 @@ public class UIManager : MonoBehaviour
 
     private void Start()
     {
+        string escena = gameObject.scene.name;
+        esZona3 = escena == "Zona3_Control";
+        if (escena == "Zona1_Recepcion" || esZona3)
+        {
+            panelObjetivosActual = esZona3 ? panelObjetivosZona3 : panelObjetivosZona1;
+            textoObjetivosActual = esZona3 ? textoObjetivosZona3 : textoObjetivosZona1;
+            if (esZona3) controlZona3 = FindFirstObjectByType<Scene3Controller>();
+            ActualizarObjetivosDeZona();
+        }
+
         // El menu principal se maneja con el mouse: el cursor debe verse al cargar la escena.
         if (panelMenu != null && panelMenu.activeSelf)
         {
@@ -110,6 +139,59 @@ public class UIManager : MonoBehaviour
     // ---------------------------------------------------------------
     // PANELES
     // ---------------------------------------------------------------
+    private void ActualizarObjetivosDeZona()
+    {
+        if (panelObjetivosActual == null || textoObjetivosActual == null) return;
+
+        bool visible = panelHUD != null && panelHUD.activeInHierarchy
+            && !PanelTerminalZ1.Abierto
+            && (panelTeclado == null || !panelTeclado.gameObject.activeInHierarchy);
+        if (panelObjetivosActual.activeSelf != visible)
+            panelObjetivosActual.SetActive(visible);
+
+        GameManager juego = GameManager.Instance;
+        if (!visible || juego == null) return;
+
+        bool primero = esZona3
+            ? controlZona3 != null && controlZona3.EnergiaRestaurada
+            : juego.TieneCodigo("codigo_a");
+        bool credencial = juego.TieneItem(esZona3 ? "credencial_z3" : "credencial_z1");
+        bool segundo = esZona3 && controlZona3 != null && controlZona3.EtapaCompletada(1);
+        var progreso = (primero, credencial, segundo);
+        if (progresoObjetivos == progreso) return;
+        progresoObjetivos = progreso;
+
+        if (esZona3)
+        {
+            textoObjetivosActual.text =
+                LineaObjetivo(primero, "1. Usa el primer código para restaurar la energía", "1. Energía restaurada") + "\n" +
+                LineaObjetivo(credencial, "2. Recoge la credencial para abrir las puertas", "2. Credencial obtenida") + "\n" +
+                LineaObjetivo(segundo, "3. Encuentra y usa el segundo código del corredor", "3. Código del corredor aceptado") + "\n" +
+                LineaSalida(primero && credencial && segundo, "4. Escapa por la salida final");
+        }
+        else
+        {
+            textoObjetivosActual.text =
+                LineaObjetivo(primero, "1. Obtén el código de la terminal", "1. Código de la terminal obtenido") + "\n" +
+                LineaObjetivo(credencial, "2. Recoge la credencial de Recepción", "2. Credencial obtenida") + "\n" +
+                LineaSalida(primero && credencial, "3. Abre la puerta al Laboratorio");
+        }
+    }
+
+    private static string LineaObjetivo(bool completado, string pendiente, string cumplido)
+    {
+        return completado
+            ? $"<color=#46E896>[OK]</color> <color=#B8DCE8>{cumplido}</color>"
+            : $"<color=#F4C452>[ ]</color>  <color=#EAF2F7>{pendiente}</color>";
+    }
+
+    private static string LineaSalida(bool listo, string objetivo)
+    {
+        return listo
+            ? $"<color=#46E896><b>[>>] {objetivo}</b></color>"
+            : $"<color=#7E93A4>[ ]  {objetivo}</color>";
+    }
+
     public void MostrarSolo(GameObject panel)
     {
         if (panelHUD != null) panelHUD.SetActive(false);
@@ -198,8 +280,42 @@ public class UIManager : MonoBehaviour
         PanelTeclado.CerrarPanelActivoPorEventoExterno();
         PanelTerminalZ1.CerrarPanelActivoPorEventoExterno();
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
+        MostrarResultadoFinal("Victoria", estadisticasVictoria, rutaVictoria);
         MostrarSolo(panelVictoria);
         CongelarParaBoton();
+    }
+
+    private void MostrarResultadoFinal(string estado, TMP_Text estadisticas, TMP_Text textoRuta)
+    {
+        GameManager juego = GameManager.Instance;
+        if (resultadoFinalRegistrado || juego == null) return;
+        resultadoFinalRegistrado = true;
+
+        PlayerHealth salud = FindFirstObjectByType<PlayerHealth>();
+        ResultadoPartida resultado = new ResultadoPartida
+        {
+            resultado = estado,
+            vidaRestante = salud != null ? salud.vidaActual : juego.vidaJugador,
+            vidaMaxima = salud != null ? salud.vidaMaxima : 100,
+            muertes = juego.muertes,
+            inventario = new List<string>(juego.inventario)
+        };
+
+        bool guardado = SaveManager.GuardarPuntuacion(resultado, out string ruta);
+        if (estadisticas != null)
+        {
+            string objetos = resultado.inventario.Count == 0
+                ? "Sin objetos"
+                : string.Join("  •  ", resultado.inventario).Replace('_', ' ');
+            estadisticas.text =
+                $"<color=#7CDED4>VIDA RESTANTE</color>  {resultado.vidaRestante}/{resultado.vidaMaxima}    " +
+                $"<color=#7CDED4>MUERTES</color>  {resultado.muertes}\n\n" +
+                $"<color=#7CDED4>INVENTARIO</color>\n{objetos}";
+        }
+        if (textoRuta != null)
+            textoRuta.text = guardado
+                ? "Resultado guardado en\n" + ruta
+                : "No se pudo guardar el resultado en\n" + ruta;
     }
 
     public void MostrarDerrota()
@@ -207,6 +323,7 @@ public class UIManager : MonoBehaviour
         PanelTeclado.CerrarPanelActivoPorEventoExterno();
         PanelTerminalZ1.CerrarPanelActivoPorEventoExterno();
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
+        MostrarResultadoFinal("Derrota", estadisticasDerrota, rutaDerrota);
         MostrarSolo(panelDerrota);
         CongelarParaBoton();
     }

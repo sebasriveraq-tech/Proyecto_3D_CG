@@ -10211,6 +10211,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 860000000, guid: a7563cbdda6264843a9787c8525fee3d, type: 3}
+      propertyPath: m_Name
+      value: Panel_Reparacion_Terminal_z1
+      objectReference: {fileID: 0}
     - target: {fileID: 698037981403770537, guid: a7563cbdda6264843a9787c8525fee3d, type: 3}
       propertyPath: m_Name
       value: Canvas_Principal
@@ -15368,21 +15372,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1789924956
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1789924952}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b4981e95734f4fd6af305b5d0f635155, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::AudioAgenteZ1
-  agente: {fileID: 641601480}
-  radioAcercamiento: {fileID: 8300000, guid: f24bfb12a40748309087df42cd294150, type: 3}
-  musicaPersecucion: {fileID: 8300000, guid: 48c4aa839c2c4a3989e9333760ec090f, type: 3}
 --- !u!114 &1789924953
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15524,6 +15513,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1789924956
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1789924952}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4981e95734f4fd6af305b5d0f635155, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioAgenteZ1
+  agente: {fileID: 641601480}
+  radioAcercamiento: {fileID: 8300000, guid: f24bfb12a40748309087df42cd294150, type: 3}
+  musicaPersecucion: {fileID: 8300000, guid: 48c4aa839c2c4a3989e9333760ec090f, type: 3}
 --- !u!1 &1813077105
 GameObject:
   m_ObjectHideFlags: 0

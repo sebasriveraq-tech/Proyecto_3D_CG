@@ -64,6 +64,7 @@ public class PlayerHealth : MonoBehaviour
     private void Morir()
     {
         muerto = true;
+        if (GameManager.Instance != null) GameManager.Instance.muertes++;
 
         if (UIManager.Instance != null)
             UIManager.Instance.MostrarDerrota();   // el panel congela el juego y libera el mouse

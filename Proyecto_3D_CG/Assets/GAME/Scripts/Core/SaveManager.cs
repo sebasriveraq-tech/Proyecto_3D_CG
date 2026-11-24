@@ -9,6 +9,7 @@ public class DatosGuardado
 {
     public string escenaActual;
     public int vidaJugador;
+    public int muertes;
     public float tiempoJugadoSegundos;
     public List<string> inventario = new List<string>();
     public List<string> codigos = new List<string>();
@@ -24,6 +25,16 @@ public class ParBool
 {
     public string clave;
     public bool valor;
+}
+
+[System.Serializable]
+public class ResultadoPartida
+{
+    public string resultado = "Victoria";
+    public int vidaRestante;
+    public int vidaMaxima;
+    public int muertes;
+    public List<string> inventario;
 }
 
 /// SaveManager: convierte el estado del GameManager a JSON y lo vuelve a leer.
@@ -73,6 +84,7 @@ public static class SaveManager
         DatosGuardado datos = new DatosGuardado();
         datos.escenaActual = GameManager.Instance.escenaActual;
         datos.vidaJugador = GameManager.Instance.vidaJugador;
+        datos.muertes = GameManager.Instance.muertes;
         datos.tiempoJugadoSegundos = GameManager.Instance.tiempoJugadoSegundos;
         datos.inventario = new List<string>(GameManager.Instance.inventario);
         datos.codigos = new List<string>(GameManager.Instance.codigos);
@@ -105,6 +117,8 @@ public static class SaveManager
         if (datos == null) return;
 
         GameManager.Instance.vidaJugador = datos.vidaJugador;
+        // Reintentar un checkpoint anterior conserva las muertes de la partida actual.
+        GameManager.Instance.muertes = Mathf.Max(GameManager.Instance.muertes, datos.muertes);
         GameManager.Instance.tiempoJugadoSegundos = datos.tiempoJugadoSegundos;
         GameManager.Instance.escenaActual = datos.escenaActual;
 
@@ -131,6 +145,27 @@ public static class SaveManager
                 GameManager.Instance.objetivos[par.clave] = par.valor;
 
         Debug.Log("Partida cargada desde: " + Ruta);
+    }
+
+    public static bool GuardarPuntuacion(ResultadoPartida resultado, out string ruta)
+    {
+        ruta = Path.Combine(Application.streamingAssetsPath, "puntuacion.json");
+        string temporal = ruta + ".tmp";
+        try
+        {
+            AsegurarCarpeta();
+            File.WriteAllText(temporal, JsonUtility.ToJson(resultado, true));
+            if (File.Exists(ruta))
+                File.Replace(temporal, ruta, null);
+            else
+                File.Move(temporal, ruta);
+            return true;
+        }
+        catch (System.Exception error) when (error is IOException || error is System.UnauthorizedAccessException)
+        {
+            Debug.LogWarning("No se pudo guardar la puntuación: " + error.Message);
+            return false;
+        }
     }
 
     public static void BorrarGuardado()

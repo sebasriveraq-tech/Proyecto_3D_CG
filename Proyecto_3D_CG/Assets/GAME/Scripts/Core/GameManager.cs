@@ -13,6 +13,7 @@ public class GameManager : MonoBehaviour
     // ESTADO GLOBAL 
 
     public int vidaJugador = 100;
+    public int muertes;
 
     public List<string> inventario = new List<string>();        // items recogidos
     public List<string> codigos = new List<string>();           // codigos descubiertos
@@ -146,6 +147,7 @@ public class GameManager : MonoBehaviour
         puertas.Clear();
         objetivos.Clear();
         tiempoJugadoSegundos = 0f;
+        muertes = 0;
         SaveManager.BorrarGuardado();
     }
 }

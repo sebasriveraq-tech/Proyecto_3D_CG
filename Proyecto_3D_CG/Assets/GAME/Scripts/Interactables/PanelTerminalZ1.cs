@@ -11,14 +11,14 @@ public class PanelTerminalZ1 : MonoBehaviour
     public static bool Abierto => panelActivoZ1 != null || AbiertoZ2;
 
     private Terminal terminal;
-    private GameObject panel;
-    private TextMeshProUGUI titulo;
-    private TextMeshProUGUI estado;
-    private TextMeshProUGUI instrucciones;
-    private TextMeshProUGUI mensaje;
-    private Image tarjetaA;
-    private Image tarjetaB;
-    private Image tarjetaC;
+    [SerializeField] private GameObject panel;
+    [SerializeField] private TextMeshProUGUI titulo;
+    [SerializeField] private TextMeshProUGUI estado;
+    [SerializeField] private TextMeshProUGUI instrucciones;
+    [SerializeField] private TextMeshProUGUI mensaje;
+    [SerializeField] private Image tarjetaA;
+    [SerializeField] private Image tarjetaB;
+    [SerializeField] private Image tarjetaC;
     private CursorLockMode bloqueoAnterior;
     private bool cursorAnterior;
 
@@ -32,9 +32,8 @@ public class PanelTerminalZ1 : MonoBehaviour
     public void Abrir(Terminal terminalActual)
     {
         if (Abierto || terminalActual == null || GameManager.Instance == null || Time.timeScale == 0f) return;
+        if (panel == null || gameObject.scene.name != "Zona1_Recepcion") return;
         terminal = terminalActual;
-        if (panel == null) CrearPanel();
-        if (panel == null) return;
 
         panelActivoZ1 = this;
         bloqueoAnterior = Cursor.lockState;
@@ -97,11 +96,7 @@ public class PanelTerminalZ1 : MonoBehaviour
             UIManager.Instance.MostrarPrompt(terminal.mensajePrompt);
     }
 
-    private void OnDestroy()
-    {
-        Cerrar(false);
-        if (panel != null) Destroy(panel);
-    }
+    private void OnDisable() => Cerrar(false);
 
     private void ActualizarPanel(string resultado)
     {
@@ -139,80 +134,5 @@ public class PanelTerminalZ1 : MonoBehaviour
         if (tarjetaA != null) tarjetaA.color = siguiente == "A" ? activa : normal;
         if (tarjetaB != null) tarjetaB.color = siguiente == "B" ? activa : normal;
         if (tarjetaC != null) tarjetaC.color = siguiente == "C" ? activa : normal;
-    }
-
-    private void CrearPanel()
-    {
-        if (UIManager.Instance == null) return;
-        Transform canvas = UIManager.Instance.transform;
-        panel = CrearImagen("Panel_Reparacion_Terminal", canvas, new Color(0.01f, 0.025f, 0.035f, 0.88f)).gameObject;
-        RectTransform fondo = panel.GetComponent<RectTransform>();
-        fondo.anchorMin = Vector2.zero;
-        fondo.anchorMax = Vector2.one;
-        fondo.offsetMin = Vector2.zero;
-        fondo.offsetMax = Vector2.zero;
-
-        Image borde = CrearImagen("Marco", panel.transform, new Color(0.18f, 0.70f, 0.66f, 1f));
-        Ajustar(borde.rectTransform, Vector2.zero, new Vector2(980f, 600f));
-        Image interior = CrearImagen("Fondo", borde.transform, new Color(0.025f, 0.07f, 0.085f, 1f));
-        Ajustar(interior.rectTransform, Vector2.zero, new Vector2(970f, 590f));
-        Image linea = CrearImagen("Linea", interior.transform, new Color(0.21f, 0.80f, 0.72f, 1f));
-        Ajustar(linea.rectTransform, new Vector2(0f, 207f), new Vector2(840f, 3f));
-
-        titulo = CrearTexto("Titulo", interior.transform, new Vector2(0f, 245f), new Vector2(850f, 55f), 37f, FontStyles.Bold);
-        estado = CrearTexto("Estado", interior.transform, new Vector2(0f, 164f), new Vector2(850f, 45f), 25f, FontStyles.Bold);
-        instrucciones = CrearTexto("Instrucciones", interior.transform, new Vector2(0f, 90f), new Vector2(850f, 85f), 26f, FontStyles.Normal);
-
-        tarjetaA = CrearTarjeta(interior.transform, "A", -160f);
-        tarjetaB = CrearTarjeta(interior.transform, "B", 0f);
-        tarjetaC = CrearTarjeta(interior.transform, "C", 160f);
-        mensaje = CrearTexto("Pila y mensajes", interior.transform, new Vector2(0f, -145f), new Vector2(850f, 90f), 23f, FontStyles.Normal);
-        TextMeshProUGUI pie = CrearTexto("Ayuda", interior.transform, new Vector2(0f, -245f), new Vector2(850f, 40f), 20f, FontStyles.Normal);
-        pie.text = "PULSA A, B O C EN TU TECLADO     •     ESC PARA CERRAR";
-        pie.color = new Color(0.65f, 0.78f, 0.80f);
-        panel.SetActive(false);
-    }
-
-    private Image CrearTarjeta(Transform padre, string letra, float x)
-    {
-        Image tarjeta = CrearImagen("Modulo_" + letra, padre, Color.white);
-        Ajustar(tarjeta.rectTransform, new Vector2(x, -35f), new Vector2(120f, 95f));
-        TextMeshProUGUI texto = CrearTexto("Letra", tarjeta.transform, Vector2.zero, new Vector2(110f, 85f), 46f, FontStyles.Bold);
-        texto.text = letra;
-        return tarjeta;
-    }
-
-    private Image CrearImagen(string nombre, Transform padre, Color color)
-    {
-        GameObject objeto = new GameObject(nombre, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        objeto.transform.SetParent(padre, false);
-        Image imagen = objeto.GetComponent<Image>();
-        imagen.color = color;
-        imagen.raycastTarget = false;
-        return imagen;
-    }
-
-    private TextMeshProUGUI CrearTexto(string nombre, Transform padre, Vector2 posicion, Vector2 tamano, float fuente, FontStyles estilo)
-    {
-        GameObject objeto = new GameObject(nombre, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
-        objeto.transform.SetParent(padre, false);
-        TextMeshProUGUI texto = objeto.GetComponent<TextMeshProUGUI>();
-        Ajustar(texto.rectTransform, posicion, tamano);
-        texto.fontSize = fuente;
-        texto.fontStyle = estilo;
-        texto.alignment = TextAlignmentOptions.Center;
-        texto.color = new Color(0.92f, 0.98f, 0.96f);
-        texto.raycastTarget = false;
-        texto.textWrappingMode = TextWrappingModes.Normal;
-        return texto;
-    }
-
-    private void Ajustar(RectTransform rect, Vector2 posicion, Vector2 tamano)
-    {
-        rect.anchorMin = new Vector2(0.5f, 0.5f);
-        rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = posicion;
-        rect.sizeDelta = tamano;
     }
 }
