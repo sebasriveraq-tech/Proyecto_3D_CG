@@ -19,9 +19,12 @@ public class GameManager : MonoBehaviour
     public List<string> inventario = new List<string>();        // items recogidos
     public List<string> codigos = new List<string>();           // codigos descubiertos
 
-    // Modulos retirados de la terminal de recepcion: el ultimo sale primero.
+    // Modulos retirados de la terminal de recepcion: el ultimo sale primero (Stack LIFO).
     public Stack<string> modulosTerminalZ1 = new Stack<string>();
     public int cantidadModulosRetiradosZ1 = 0;
+
+    // Bitacora FIFO de eventos y objetivos de la partida (Queue: Enqueue, Peek, Dequeue).
+    public Queue<string> colaBitacora = new Queue<string>();
 
     public Dictionary<string, bool> puertas = new Dictionary<string, bool>();     // idPuerta -> abierta
     public Dictionary<string, bool> objetivos = new Dictionary<string, bool>();   // idObjetivo -> completado
@@ -73,8 +76,11 @@ public class GameManager : MonoBehaviour
             || nombre == "Zona3_Control";
     }
 
+    private bool cambiandoEscena;
+
     private void AlCargarEscena(Scene escena, LoadSceneMode modo)
     {
+        cambiandoEscena = false;
         if (!EsEscenaJugable(escena.name)) return;
 
         escenaActual = escena.name;
@@ -114,26 +120,73 @@ public class GameManager : MonoBehaviour
         rutinaNotificacionCheckpoint = null;
     }
 
+    private void CargarEscenaConFade(string nombreEscena, float duracionFade = 0.75f)
+    {
+        if (cambiandoEscena) return;
+        StartCoroutine(RutinaCargarEscenaConFade(nombreEscena, duracionFade));
+    }
+
+    private IEnumerator RutinaCargarEscenaConFade(string nombreEscena, float duracionFade)
+    {
+        cambiandoEscena = true;
+        GameSettingsManager cfg = GameSettingsManager.GarantizarInstancia();
+        if (cfg != null && cfg.MultiplicadorTransicionMusica > 0.02f)
+            yield return cfg.FundirMusicaA(0f, duracionFade);
+
+        cambiandoEscena = false;
+        SceneManager.LoadScene(nombreEscena);
+    }
+
     private void Update()
     {
         
         tiempoJugadoSegundos += Time.deltaTime; // Sumar el tiempo real de juego 
     }
 
+    // BITACORA FIFO (Queue: Enqueue, Peek, Dequeue)
+    public void RegistrarEventoBitacora(string evento)
+    {
+        if (string.IsNullOrEmpty(evento)) return;
+        colaBitacora.Enqueue(evento);
+        while (colaBitacora.Count > 10)
+        {
+            string antiguo = colaBitacora.Peek();
+            colaBitacora.Dequeue();
+        }
+    }
+
     // INVENTARIO
-    public void AgregarItem(string id) { if (!inventario.Contains(id)) inventario.Add(id); }
+    public void AgregarItem(string id)
+    {
+        if (!inventario.Contains(id))
+        {
+            inventario.Add(id);
+            RegistrarEventoBitacora("Item:" + id);
+        }
+    }
     public bool TieneItem(string id) { return inventario.Contains(id); }
 
 
     // CODIGOS
   
-    public void AgregarCodigo(string codigo) { if (!codigos.Contains(codigo)) codigos.Add(codigo); }
+    public void AgregarCodigo(string codigo)
+    {
+        if (!codigos.Contains(codigo))
+        {
+            codigos.Add(codigo);
+            RegistrarEventoBitacora("Codigo:" + codigo);
+        }
+    }
     public bool TieneCodigo(string codigo) { return codigos.Contains(codigo); }
 
   
     // PUERTAS
    
-    public void AbrirPuerta(string idPuerta) { puertas[idPuerta] = true; }
+    public void AbrirPuerta(string idPuerta)
+    {
+        puertas[idPuerta] = true;
+        RegistrarEventoBitacora("Puerta:" + idPuerta);
+    }
 
     public bool PuertaAbierta(string idPuerta)
     {
@@ -144,7 +197,11 @@ public class GameManager : MonoBehaviour
     
     // OBJETIVOS
    
-    public void CompletarObjetivo(string idObjetivo) { objetivos[idObjetivo] = true; }
+    public void CompletarObjetivo(string idObjetivo)
+    {
+        objetivos[idObjetivo] = true;
+        RegistrarEventoBitacora("Objetivo:" + idObjetivo);
+    }
 
     public bool ObjetivoCompletado(string idObjetivo)
     {
@@ -155,6 +212,8 @@ public class GameManager : MonoBehaviour
 
     public void CambiarEscena(string nombreEscena)
     {
+        if (cambiandoEscena) return;
+
         escenaActual = nombreEscena;
         if (EsEscenaJugable(nombreEscena))
         {
@@ -162,7 +221,7 @@ public class GameManager : MonoBehaviour
             SaveManager.GuardarDatos(checkpointZonaActual);
             notificarCheckpointAlEntrar = true;
         }
-        SceneManager.LoadScene(nombreEscena);
+        CargarEscenaConFade(nombreEscena, 0.75f);
     }
 
     // VICTORIA: la llama el objeto final de la Zona 3. La partida termina:
@@ -181,6 +240,8 @@ public class GameManager : MonoBehaviour
 
     public void ReiniciarDesdeCheckpoint()
     {
+        if (cambiandoEscena) return;
+
         string zonaActual = SceneManager.GetActiveScene().name;
         DatosGuardado snap = (checkpointZonaActual != null && checkpointZonaActual.escenaActual == zonaActual)
             ? checkpointZonaActual
@@ -200,7 +261,7 @@ public class GameManager : MonoBehaviour
         escenaActual = zonaActual;        // se recarga la zona donde murio
         notificarCheckpointAlEntrar = false;
         Time.timeScale = 1f;
-        SceneManager.LoadScene(zonaActual);
+        CargarEscenaConFade(zonaActual, 0.45f);
     }
 
     // CONTINUAR: el menu lee el JSON y abre la zona donde se quedo el jugador.
@@ -212,13 +273,23 @@ public class GameManager : MonoBehaviour
 
     public void ContinuarPartida()
     {
+        if (cambiandoEscena) return;
+
         DatosGuardado datos = SaveManager.LeerDatos();
         if (datos == null) return;
 
         checkpointZonaActual = datos;
         SaveManager.AplicarDatos(datos, false);
         notificarCheckpointAlEntrar = false;
-        SceneManager.LoadScene(escenaActual);
+        CargarEscenaConFade(escenaActual, 0.45f);
+    }
+
+    public void IrAlMenuConFade()
+    {
+        Time.timeScale = 1f;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+        CargarEscenaConFade("Menu", 0.55f);
     }
 
     // NUEVA PARTIDA: limpiar el estado en memoria y borrar el archivo viejo.
@@ -230,6 +301,7 @@ public class GameManager : MonoBehaviour
         codigos.Clear();
         modulosTerminalZ1.Clear();
         cantidadModulosRetiradosZ1 = 0;
+        colaBitacora.Clear();
         puertas.Clear();
         objetivos.Clear();
         tiempoJugadoSegundos = 0f;

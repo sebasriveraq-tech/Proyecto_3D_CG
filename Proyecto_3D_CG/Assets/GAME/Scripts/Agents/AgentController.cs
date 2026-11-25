@@ -58,10 +58,26 @@ public class AgentController : MonoBehaviour
     private float temporizadorPasos;
     private bool patrullaEsperando;
     private MaterialPropertyBlock bloqueMaterial;
+    private AgentAnimatorZ3 animacionesZ3;
+    private Light luzEstado3D;
+    private Light luzRellenoModelo;
+
+    private static bool EsMallaConTextura(Renderer renderizador)
+    {
+        if (renderizador == null) return false;
+        if (renderizador is SkinnedMeshRenderer) return true;
+
+        Material mat = renderizador.sharedMaterial;
+        if (mat == null) return false;
+        if (mat.HasProperty("_BaseMap") && mat.GetTexture("_BaseMap") != null) return true;
+        if (mat.HasProperty("_MainTex") && mat.GetTexture("_MainTex") != null) return true;
+        return false;
+    }
 
     private void Awake()
     {
         agente = GetComponent<NavMeshAgent>();
+        animacionesZ3 = GetComponentInChildren<AgentAnimatorZ3>();
         audioEstado = audioEstado != null ? audioEstado : GetComponent<AudioSource>();
         if (audioEstado == null) audioEstado = gameObject.AddComponent<AudioSource>();
         audioEstado.playOnAwake = false;
@@ -75,8 +91,59 @@ public class AgentController : MonoBehaviour
         GameSettingsManager.GarantizarInstancia().RegistrarFuenteConVolumenBase(audioEstado, volumenPasos);
 
         if (indicadoresVisuales == null || indicadoresVisuales.Length == 0)
-            indicadoresVisuales = GetComponentsInChildren<Renderer>();
+        {
+            Renderer[] todos = GetComponentsInChildren<Renderer>();
+            var filtrados = new System.Collections.Generic.List<Renderer>(todos.Length);
+            for (int i = 0; i < todos.Length; i++)
+            {
+                if (!EsMallaConTextura(todos[i]))
+                    filtrados.Add(todos[i]);
+            }
+            indicadoresVisuales = filtrados.ToArray();
+        }
         bloqueMaterial = new MaterialPropertyBlock();
+        ConfigurarLuces3DAgente();
+    }
+
+    private void ConfigurarLuces3DAgente()
+    {
+        if (GetComponentInChildren<LuzEstadoDronZ1>() != null)
+            return;
+
+        Transform trEstado = transform.Find("Luz_Estado_Agente_3D");
+        if (trEstado == null)
+        {
+            GameObject goLuz = new GameObject("Luz_Estado_Agente_3D");
+            goLuz.transform.SetParent(transform, false);
+            goLuz.transform.localPosition = new Vector3(0f, 1.55f, 0.28f);
+            luzEstado3D = goLuz.AddComponent<Light>();
+            luzEstado3D.type = LightType.Point;
+            luzEstado3D.range = 3.2f;
+            luzEstado3D.intensity = 1.65f;
+            luzEstado3D.shadows = LightShadows.None;
+        }
+        else
+        {
+            luzEstado3D = trEstado.GetComponent<Light>();
+        }
+
+        Transform trRelleno = transform.Find("Luz_Relleno_Modelo_3D");
+        if (trRelleno == null)
+        {
+            GameObject goRelleno = new GameObject("Luz_Relleno_Modelo_3D");
+            goRelleno.transform.SetParent(transform, false);
+            goRelleno.transform.localPosition = new Vector3(0f, 1.35f, 0.58f);
+            luzRellenoModelo = goRelleno.AddComponent<Light>();
+            luzRellenoModelo.type = LightType.Point;
+            luzRellenoModelo.color = new Color(0.95f, 0.96f, 1f);
+            luzRellenoModelo.range = 3.2f;
+            luzRellenoModelo.intensity = 1.6f;
+            luzRellenoModelo.shadows = LightShadows.None;
+        }
+        else
+        {
+            luzRellenoModelo = trRelleno.GetComponent<Light>();
+        }
     }
 
     private void Start()
@@ -238,13 +305,22 @@ public class AgentController : MonoBehaviour
             return;
         }
 
+        if (agente.isOnNavMesh)
+        {
+            agente.isStopped = true;
+            agente.ResetPath();
+        }
+
         MirarAlJugador();
         if (Time.time >= proximoDano)
         {
             proximoDano = Time.time + cooldownDano;
+            if (animacionesZ3 != null)
+                animacionesZ3.Atacar();
             saludJugador.RecibirDano(dano);
             LabAudioFeedback.ReproducirAtaqueAgente(transform.position);
-            StartCoroutine(PulsoAtaque());
+            if (animacionesZ3 == null)
+                StartCoroutine(PulsoAtaque());
         }
     }
 
@@ -309,6 +385,9 @@ public class AgentController : MonoBehaviour
         if (EstadoActual == nuevoEstado)
             return;
 
+        if (EstadoActual == AgentState.Ataque && agente != null && agente.enabled && agente.isOnNavMesh)
+            agente.isStopped = false;
+
         EstadoActual = nuevoEstado;
         proximaActualizacionRuta = 0f;
         patrullaEsperando = false;
@@ -329,12 +408,15 @@ public class AgentController : MonoBehaviour
 
     private void ActualizarColor(Color color)
     {
+        if (luzEstado3D != null)
+            luzEstado3D.color = color;
+
         if (indicadoresVisuales == null)
             return;
 
         foreach (Renderer renderizador in indicadoresVisuales)
         {
-            if (renderizador == null) continue;
+            if (renderizador == null || EsMallaConTextura(renderizador)) continue;
             renderizador.GetPropertyBlock(bloqueMaterial);
             bloqueMaterial.SetColor("_BaseColor", color);
             bloqueMaterial.SetColor("_Color", color);

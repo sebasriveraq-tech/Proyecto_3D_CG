@@ -174,7 +174,10 @@ public class Terminal : Interactable
             if (juego.ObjetivoCompletado(objetivoReparacionZ1))
                 juego.AgregarCodigo(idCodigo);
             ActualizarPantalla();
-            if (panelReparacion != null) panelReparacion.Abrir(this);
+            if (UIManager.Instance != null)
+                UIManager.Instance.AbrirTerminalZ1(panelReparacion, this);
+            else if (panelReparacion != null)
+                panelReparacion.Abrir(this);
             return;
         }
 
@@ -182,7 +185,10 @@ public class Terminal : Interactable
         {
             if (juego.TieneCodigo(idCodigo))
                 panelServidorZ2.MarcarCompletadoExternamente(true);
-            panelServidorZ2.Abrir();
+            if (UIManager.Instance != null)
+                UIManager.Instance.AbrirMiniJuegoZ2(panelServidorZ2);
+            else
+                panelServidorZ2.Abrir();
             return;
         }
 

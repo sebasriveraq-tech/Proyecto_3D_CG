@@ -188,7 +188,10 @@ public class ControlPaneles : MonoBehaviour
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.None;   // el menu principal usa el mouse
         Cursor.visible = true;
-        SceneManager.LoadScene("Menu");
+        if (GameManager.Instance != null)
+            GameManager.Instance.IrAlMenuConFade();
+        else
+            SceneManager.LoadScene("Menu");
     }
 
     private void Pausar()

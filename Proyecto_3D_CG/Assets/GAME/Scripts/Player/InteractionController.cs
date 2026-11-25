@@ -10,6 +10,7 @@ public class InteractionController : MonoBehaviour
     public float grosorRayo = 0.35f;   // radio de la esfera del SphereCast (evita exigir punteria perfecta)
 
     private Interactable objetivoActual;
+    private string ultimoPromptMostrado;
 
     private void Start()
     {
@@ -38,6 +39,7 @@ public class InteractionController : MonoBehaviour
             if (objetivoActual != null)
             {
                 objetivoActual = null;
+                ultimoPromptMostrado = null;
                 if (!ArmarioEscondite.JugadorOculto && !ArmarioEscondite.EstaJugadorDentroDeArmario(transform) && UIManager.Instance != null)
                     UIManager.Instance.OcultarPrompt();
             }
@@ -117,7 +119,7 @@ public class InteractionController : MonoBehaviour
             }
         }
 
-        // Solo se actualiza la interfaz cuando el objetivo cambia.
+        // Actualizar la interfaz cuando cambia el objetivo o su texto de prompt dinamico.
         if (nuevoObjetivo != objetivoActual)
         {
             objetivoActual = nuevoObjetivo;
@@ -125,16 +127,29 @@ public class InteractionController : MonoBehaviour
             if (UIManager.Instance != null)
             {
                 if (objetivoActual != null)
-                    UIManager.Instance.MostrarPrompt(objetivoActual.mensajePrompt);
+                {
+                    ultimoPromptMostrado = objetivoActual.mensajePrompt;
+                    UIManager.Instance.MostrarPrompt(ultimoPromptMostrado);
+                }
                 else
+                {
+                    ultimoPromptMostrado = null;
                     UIManager.Instance.OcultarPrompt();
+                }
             }
+        }
+        else if (objetivoActual != null && objetivoActual.mensajePrompt != ultimoPromptMostrado)
+        {
+            ultimoPromptMostrado = objetivoActual.mensajePrompt;
+            if (UIManager.Instance != null)
+                UIManager.Instance.MostrarPrompt(ultimoPromptMostrado);
         }
     }
 
     private void OnDisable()
     {
         // Al cambiar de escena el prompt no debe quedar pegado en pantalla.
+        ultimoPromptMostrado = null;
         if (UIManager.Instance != null) UIManager.Instance.OcultarPrompt();
     }
 }

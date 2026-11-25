@@ -1,8 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// Hace pulsar las luces de emergencia y pausa la alarma cuando se pausa el juego.
-/// Este componente se utiliza solamente en la Zona 1.
+/// Controlador ambiental de la Zona 1 (Recepción): sincroniza con GameManager el estado
+/// de emergencia de la recepción, pulsa las luces mientras la terminal está averiada
+/// y estabiliza la iluminación cuando el jugador repara la terminal y obtiene el código.
 /// </summary>
 public class AmbienteEmergenciaZ1 : MonoBehaviour
 {
@@ -20,29 +21,63 @@ public class AmbienteEmergenciaZ1 : MonoBehaviour
     public Color luzAmbienteMaxima = new Color(0.12f, 0.025f, 0.02f);
 
     private bool alarmaPausada;
+    private bool sistemaEstabilizado;
+
+    private void Start()
+    {
+        if (GameManager.Instance != null && !GameManager.Instance.ObjetivoCompletado("recepcion_iniciada_z1"))
+            GameManager.Instance.CompletarObjetivo("recepcion_iniciada_z1");
+    }
 
     private void Update()
     {
-        float onda = (Mathf.Sin(Time.time * pulsosPorSegundo * 2f * Mathf.PI) + 1f) * 0.5f;
-        // Mantiene un instante de apagado total antes de volver a encender.
-        float pulso = Mathf.Clamp01(onda * 1.25f - 0.25f);
-        float intensidad = Mathf.Lerp(intensidadMinima, intensidadMaxima, pulso);
+        bool reparada = GameManager.Instance != null &&
+            (GameManager.Instance.ObjetivoCompletado("terminal_reparada_z1") ||
+             GameManager.Instance.TieneCodigo("codigo_a"));
 
-        foreach (Light luz in luces)
+        if (reparada)
         {
-            if (luz != null) luz.intensity = intensidad;
-        }
+            if (!sistemaEstabilizado)
+            {
+                sistemaEstabilizado = true;
+                Color colorEstable = new Color(0.76f, 0.94f, 1f);
+                foreach (Light luz in luces)
+                {
+                    if (luz == null) continue;
+                    luz.color = colorEstable;
+                    luz.intensity = Mathf.Max(1.35f, intensidadMaxima * 0.9f);
+                }
 
-        if (luzDireccional != null)
+                if (luzDireccional != null)
+                {
+                    luzDireccional.shadows = LightShadows.None;
+                    luzDireccional.intensity = intensidadRelleno + intensidadDireccionalMaxima;
+                }
+
+                RenderSettings.ambientLight = new Color(0.20f, 0.24f, 0.27f);
+                RenderSettings.reflectionIntensity = 0.35f;
+            }
+        }
+        else
         {
-            // El techo no debe bloquear la luz de relleno de Recepción.
-            luzDireccional.shadows = LightShadows.None;
-            luzDireccional.intensity = intensidadRelleno + intensidadDireccionalMaxima * pulso;
-        }
+            float onda = (Mathf.Sin(Time.time * pulsosPorSegundo * 2f * Mathf.PI) + 1f) * 0.5f;
+            float pulso = Mathf.Clamp01(onda * 1.25f - 0.25f);
+            float intensidad = Mathf.Lerp(intensidadMinima, intensidadMaxima, pulso);
 
-        // El pulso suma un tono rojo a la luz ambiental base.
-        RenderSettings.ambientLight = luzAmbienteMinima + luzAmbienteMaxima * pulso;
-        RenderSettings.reflectionIntensity = 0.25f * pulso;
+            foreach (Light luz in luces)
+            {
+                if (luz != null) luz.intensity = intensidad;
+            }
+
+            if (luzDireccional != null)
+            {
+                luzDireccional.shadows = LightShadows.None;
+                luzDireccional.intensity = intensidadRelleno + intensidadDireccionalMaxima * pulso;
+            }
+
+            RenderSettings.ambientLight = luzAmbienteMinima + luzAmbienteMaxima * pulso;
+            RenderSettings.reflectionIntensity = 0.25f * pulso;
+        }
 
         if (alarma == null) return;
 

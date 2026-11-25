@@ -59,6 +59,7 @@ public class Puerta : Interactable
     // La puerta sube como una compuerta mientras el humo 3D y el overlay UI cubren toda la vista antes del cambio de escena.
     private IEnumerator AbrirYCambiar()
     {
+        GameSettingsManager.GarantizarInstancia().IniciarFadeOutMusica(Mathf.Max(0.6f, duracionApertura + 0.45f));
         Vector3 inicio = transform.position;
         Vector3 fin = inicio + Vector3.up * 2.5f;
 
@@ -504,16 +505,10 @@ public class Puerta : Interactable
 
         public static void IniciarCortina(float duracionSubida, Sprite spriteNube)
         {
-            GameObject go = new GameObject("Overlay_Niebla_Transicion_UI");
-            DontDestroyOnLoad(go);
+            if (UIManager.Instance == null) return;
 
-            Canvas canvas = go.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 31000;
-
-            CanvasScaler scaler = go.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            GameObject go = new GameObject("Overlay_Niebla_Transicion_UI", typeof(RectTransform));
+            AttachAlCanvasPrincipal(go.GetComponent<RectTransform>());
 
             CortinaNieblaTransicion cortina = go.AddComponent<CortinaNieblaTransicion>();
             cortina.grupo = go.AddComponent<CanvasGroup>();
@@ -541,6 +536,18 @@ public class Puerta : Interactable
             }
 
             cortina.StartCoroutine(cortina.AnimarCortina());
+        }
+
+        private static void AttachAlCanvasPrincipal(RectTransform rt)
+        {
+            if (rt == null || UIManager.Instance == null) return;
+            rt.SetParent(UIManager.Instance.transform, false);
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            rt.localScale = Vector3.one;
+            rt.SetAsLastSibling();
         }
 
         private static RectTransform CrearNubeMovil(Transform padre, string nombre, Sprite sprite, Vector2 pos, Vector2 tam)

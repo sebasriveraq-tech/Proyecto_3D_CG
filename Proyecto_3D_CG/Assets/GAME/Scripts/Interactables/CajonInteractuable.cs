@@ -159,6 +159,11 @@ public class CajonInteractuable : Interactable
             colliderContenedor.enabled = !abierto;
     }
 
+    public override bool PuedeInteractuar(Transform origenJugador)
+    {
+        return !ArmarioEscondite.JugadorOculto && !moviendo && !(abierto && recogibleInterno != null);
+    }
+
     public override void Interactuar()
     {
         if (ArmarioEscondite.JugadorOculto) return;

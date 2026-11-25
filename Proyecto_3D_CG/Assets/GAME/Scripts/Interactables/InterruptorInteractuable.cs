@@ -132,7 +132,10 @@ public class InterruptorInteractuable : Interactable
         {
             LabAudioFeedback.ReproducirInterruptor(transform.position, true, audioSource);
             panelCircuitosZ2.MarcarCompletadoExternamente(encendido);
-            panelCircuitosZ2.Abrir();
+            if (UIManager.Instance != null)
+                UIManager.Instance.AbrirMiniJuegoZ2(panelCircuitosZ2);
+            else
+                panelCircuitosZ2.Abrir();
             return;
         }
 

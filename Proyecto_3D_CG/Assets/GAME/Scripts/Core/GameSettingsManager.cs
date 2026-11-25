@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -36,6 +37,9 @@ public class GameSettingsManager : MonoBehaviour
     private AudioSource fuenteAmbienteMenu;
     private AudioSource fuentePreviewUI;
     private float temporizadorEscaneo;
+    private Coroutine rutinaFadeMusica;
+
+    public float MultiplicadorTransicionMusica { get; private set; } = 1f;
 
     public static float FactorEfectos =>
         Instance != null ? (Instance.silenciado ? 0f : Instance.volumenEfectos) : DefaultVolumenEfectos;
@@ -118,6 +122,11 @@ public class GameSettingsManager : MonoBehaviour
     {
         ActualizarAmbienteMenu(escena.name);
         AplicarConfiguracionEnTiempoReal();
+        if (MultiplicadorTransicionMusica < 0.99f)
+        {
+            if (rutinaFadeMusica != null) StopCoroutine(rutinaFadeMusica);
+            rutinaFadeMusica = StartCoroutine(FundirMusicaA(1f, 0.65f));
+        }
     }
 
     private void ActualizarAmbienteMenu(string nombreEscena)
@@ -231,6 +240,8 @@ public class GameSettingsManager : MonoBehaviour
             if (EsFuenteDinamicaAgente(fuente))
             {
                 fuente.mute = silenciado;
+                if (MultiplicadorTransicionMusica < 0.999f)
+                    fuente.volume = Mathf.Min(fuente.volume, MultiplicadorTransicionMusica);
                 continue;
             }
 
@@ -242,7 +253,7 @@ public class GameSettingsManager : MonoBehaviour
             }
 
             bool esMusicaOAmbiente = EsFuenteMusicaOAmbiente(fuente);
-            float factor = silenciado ? 0f : (esMusicaOAmbiente ? volumenMusica : volumenEfectos);
+            float factor = silenciado ? 0f : (esMusicaOAmbiente ? volumenMusica * MultiplicadorTransicionMusica : volumenEfectos);
             fuente.volume = Mathf.Clamp01(baseVol * factor);
             fuente.mute = silenciado;
         }
@@ -253,9 +264,39 @@ public class GameSettingsManager : MonoBehaviour
         if (fuente == null) return;
         volumenesBase[fuente.GetInstanceID()] = Mathf.Clamp01(volumenBase);
         bool esMusicaOAmbiente = EsFuenteMusicaOAmbiente(fuente);
-        float factor = silenciado ? 0f : (esMusicaOAmbiente ? volumenMusica : volumenEfectos);
+        float factor = silenciado ? 0f : (esMusicaOAmbiente ? volumenMusica * MultiplicadorTransicionMusica : volumenEfectos);
         fuente.volume = Mathf.Clamp01(volumenBase * factor);
         fuente.mute = silenciado;
+    }
+
+    public void EstablecerMultiplicadorTransicionMusica(float valor)
+    {
+        MultiplicadorTransicionMusica = Mathf.Clamp01(valor);
+        SincronizarFuentesDeEscena();
+    }
+
+    public void IniciarFadeOutMusica(float duracion = 0.85f)
+    {
+        if (rutinaFadeMusica != null) StopCoroutine(rutinaFadeMusica);
+        rutinaFadeMusica = StartCoroutine(FundirMusicaA(0f, duracion));
+    }
+
+    public IEnumerator FundirMusicaA(float destino, float duracion)
+    {
+        float inicio = MultiplicadorTransicionMusica;
+        float total = Mathf.Max(0.05f, duracion);
+        float t = 0f;
+
+        while (t < total)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / total));
+            EstablecerMultiplicadorTransicionMusica(Mathf.Lerp(inicio, destino, k));
+            yield return null;
+        }
+
+        EstablecerMultiplicadorTransicionMusica(destino);
+        rutinaFadeMusica = null;
     }
 
     public void ReproducirFeedbackUI()

@@ -84,6 +84,14 @@ public class Scene3Controller : MonoBehaviour
 
     private void Start()
     {
+        if (GameManager.Instance != null)
+        {
+            if (!GameManager.Instance.TieneItem("credencial_z2"))
+                GameManager.Instance.AgregarItem("credencial_z2");
+            if (!GameManager.Instance.TieneCodigo("codigo_z2"))
+                GameManager.Instance.AgregarCodigo("codigo_z2");
+        }
+
         GenerarCodigos();
         AplicarEstadoSinEnergia();
 
@@ -179,8 +187,11 @@ public class Scene3Controller : MonoBehaviour
         RenderSettings.ambientMode =
             UnityEngine.Rendering.AmbientMode.Flat;
 
-        RenderSettings.ambientLight = ambienteApagado;
-        RenderSettings.reflectionIntensity = 0f;
+        RenderSettings.ambientLight = new Color(
+            Mathf.Max(ambienteApagado.r, 0.10f),
+            Mathf.Max(ambienteApagado.g, 0.11f),
+            Mathf.Max(ambienteApagado.b, 0.13f));
+        RenderSettings.reflectionIntensity = 0.2f;
 
         if (apagarTodasAlInicio)
         {
@@ -211,7 +222,10 @@ public class Scene3Controller : MonoBehaviour
 
     private void RestaurarEnergia()
     {
-        RenderSettings.ambientLight = ambienteEncendido;
+        RenderSettings.ambientLight = new Color(
+            Mathf.Max(ambienteEncendido.r, 0.36f),
+            Mathf.Max(ambienteEncendido.g, 0.37f),
+            Mathf.Max(ambienteEncendido.b, 0.40f));
         RenderSettings.reflectionIntensity = 1f;
 
         foreach (Light l in lucesApagadas)
@@ -331,7 +345,8 @@ public class Scene3Controller : MonoBehaviour
 
         while (colaMensajes.Count > 0)
         {
-            string siguiente = colaMensajes.Dequeue();
+            string siguiente = colaMensajes.Peek();
+            colaMensajes.Dequeue();
 
             if (UIManager.Instance != null)
                 UIManager.Instance.MostrarMensaje(siguiente);

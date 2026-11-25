@@ -514,8 +514,8 @@ MonoBehaviour:
   intensidadPulsoDanio: 0.07
   umbralVidaCritica: 0.2
   sonidoClicUI: {fileID: 8300000, guid: 84250c236effe544c9b20be89210c12b, type: 3}
-  sonidoDerrota: {fileID: 8300000, guid: 37fb5fe8cd0c80847b26e7b99cbd4f03, type: 3}
-  sonidoVictoria: {fileID: 8300000, guid: 330527ddce92b454596798322414ae4a, type: 3}
+  sonidoDerrota: {fileID: 8300000, guid: c2d3e4f5a6b7489091a2b3c4d5e6f702, type: 3}
+  sonidoVictoria: {fileID: 8300000, guid: c2d3e4f5a6b7489091a2b3c4d5e6f701, type: 3}
   toastCheckpoint: {fileID: 867000001}
   canvasGroupToastCheckpoint: {fileID: 867000005}
   textoToastCheckpoint: {fileID: 867000013}

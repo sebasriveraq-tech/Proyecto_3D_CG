@@ -47,6 +47,7 @@ public class LaboratorioController : MonoBehaviour
     public Outline bordeObjetivoHUD;
 
     private bool credencialDetectadaPrev;
+    private bool sonidoTareasCompletadasReproducido;
 
     private void Awake()
     {
@@ -115,6 +116,14 @@ public class LaboratorioController : MonoBehaviour
 
     private void Start()
     {
+        if (GameManager.Instance != null)
+        {
+            if (!GameManager.Instance.TieneItem("credencial_z1"))
+                GameManager.Instance.AgregarItem("credencial_z1");
+            if (!GameManager.Instance.TieneCodigo("codigo_a"))
+                GameManager.Instance.AgregarCodigo("codigo_a");
+        }
+
         EnergiaRestaurada = interruptorEnergia != null && interruptorEnergia.encendido;
         if (interruptorEnergia != null)
         {
@@ -270,6 +279,27 @@ public class LaboratorioController : MonoBehaviour
 
     private void GarantizarCollidersMobiliarioZona2()
     {
+        CajonInteractuable cajon = FindFirstObjectByType<CajonInteractuable>();
+        Recogible recogibleCredencial = null;
+        if (cajon != null)
+        {
+            recogibleCredencial = cajon.GetComponentInChildren<Recogible>(true);
+            if (recogibleCredencial == null)
+            {
+                float mejorDist = 1.2f;
+                foreach (Recogible r in FindObjectsByType<Recogible>(FindObjectsSortMode.None))
+                {
+                    if (r == null) continue;
+                    float d = Vector3.Distance(cajon.transform.position, r.transform.position);
+                    if (d < mejorDist)
+                    {
+                        mejorDist = d;
+                        recogibleCredencial = r;
+                    }
+                }
+            }
+        }
+
         string[] grupos = { "Mobiliario_de_Laboratorio", "Ambientacion_Industrial_Zona2" };
         foreach (string nombreGrupo in grupos)
         {
@@ -282,25 +312,42 @@ public class LaboratorioController : MonoBehaviour
 
                 string n = hijo.name;
 
-                // Excluir accesorios, monitores, teclados, sillas pequeñas y modelos acoplados a interactuables
-                // para eliminar cualquier collider residual en los pasillos alrededor de terminales y armarios.
+                // Excluir únicamente accesorios pequeños sobre mesas, letreros o elementos elevados
                 if (n.Contains("Credencial") || n.Contains("Tarjeta") || n.Contains("PS_") ||
                     n.Contains("Letrero") || n.Contains("Sign_") || n.Contains("Word_") ||
                     n.Contains("Intercom") || n.Contains("pipes") || n.Contains("Abrazadera") ||
                     n.Contains("Monitor") || n.Contains("Teclado") || n.Contains("Raton") ||
-                    n.Contains("microscope") || n.Contains("Basurero") || n.Contains("Extintor") ||
-                    n.Contains("Turbina") || n.Contains("Airing") ||
-                    n == "Consola_Interruptor" || n == "Consola_Control_Energia" ||
-                    n == "Terminal_Cientifico_3D" || n == "Gabinete_Cientifico_Interactivo")
+                    n.Contains("microscope") || n.Contains("Turbina") || n.Contains("Airing"))
                 {
                     foreach (Collider c in hijo.GetComponentsInChildren<Collider>(true))
                         Destroy(c);
                     continue;
                 }
 
-                AjustarBoxColliderExactoPorMallas(hijo, n.StartsWith("Silla_") ? 0.78f : 0.88f);
-
                 BoxCollider col = hijo.GetComponent<BoxCollider>();
+                if (n == "Gabinete_Cientifico_Interactivo")
+                {
+                    if (col == null) col = hijo.gameObject.AddComponent<BoxCollider>();
+                    col.isTrigger = false;
+                    col.center = new Vector3(0f, 0.48f, 0f);
+                    col.size = new Vector3(1.55f, 0.96f, 1.02f);
+                }
+                else if (nombreGrupo == "Mobiliario_de_Laboratorio" || col == null)
+                {
+                    float factor = n.StartsWith("Silla_") ? 0.82f : 0.92f;
+                    AjustarBoxColliderExactoPorMallas(hijo, factor);
+                    col = hijo.GetComponent<BoxCollider>();
+                }
+
+                if (n == "Consola_Interruptor" && interruptorEnergia != null)
+                    VincularRelayInteractivo(hijo, interruptorEnergia, null);
+                else if (n == "Consola_Control_Energia" && botonAlarma != null)
+                    VincularRelayInteractivo(hijo, botonAlarma, null);
+                else if (n == "Terminal_Cientifico_3D" && terminal != null)
+                    VincularRelayInteractivo(hijo, terminal, null);
+                else if (n == "Gabinete_Cientifico_Interactivo" && cajon != null)
+                    VincularRelayInteractivo(hijo, cajon, recogibleCredencial);
+
                 if (col != null && hijo.position.y < 0.45f && hijo.GetComponent<NavMeshObstacle>() == null)
                 {
                     NavMeshObstacle obstaculo = hijo.gameObject.AddComponent<NavMeshObstacle>();
@@ -309,6 +356,31 @@ public class LaboratorioController : MonoBehaviour
                     obstaculo.size = col.size;
                     obstaculo.carving = true;
                     obstaculo.carveOnlyStationary = true;
+                }
+            }
+        }
+
+        GameObject revestimientos = GameObject.Find("Revestimientos_y_Estructura");
+        if (revestimientos != null)
+        {
+            foreach (Transform hijo in revestimientos.transform)
+            {
+                if (hijo == null || !hijo.gameObject.activeInHierarchy) continue;
+
+                string n = hijo.name;
+                if (n.StartsWith("Soporte_Tuberias_"))
+                {
+                    AjustarBoxColliderExactoPorMallas(hijo, 0.85f);
+                    BoxCollider col = hijo.GetComponent<BoxCollider>();
+                    if (col != null && hijo.GetComponent<NavMeshObstacle>() == null)
+                    {
+                        NavMeshObstacle obs = hijo.gameObject.AddComponent<NavMeshObstacle>();
+                        obs.shape = NavMeshObstacleShape.Box;
+                        obs.center = col.center;
+                        obs.size = col.size;
+                        obs.carving = true;
+                        obs.carveOnlyStationary = true;
+                    }
                 }
             }
         }
@@ -359,54 +431,84 @@ public class LaboratorioController : MonoBehaviour
         }
     }
 
+    private static void VincularRelayInteractivo(Transform raiz, Interactable destino, Interactable destinoSecundario)
+    {
+        if (raiz == null || (destino == null && destinoSecundario == null)) return;
+
+        InteractableRelay relay = raiz.GetComponent<InteractableRelay>();
+        if (relay == null) relay = raiz.gameObject.AddComponent<InteractableRelay>();
+        relay.destino = destino;
+        relay.destinoSecundario = destinoSecundario;
+    }
+
     private static void AjustarBoxColliderExactoPorMallas(Transform raiz, float factorPlanta)
     {
-        MeshFilter[] filtros = raiz.GetComponentsInChildren<MeshFilter>(true);
-        if (filtros == null || filtros.Length == 0) return;
-
         bool inicializado = false;
         Bounds limitesLocales = default;
 
-        foreach (MeshFilter mf in filtros)
+        MeshFilter[] filtros = raiz.GetComponentsInChildren<MeshFilter>(true);
+        if (filtros != null)
         {
-            if (mf == null || mf.sharedMesh == null) continue;
-            Renderer r = mf.GetComponent<Renderer>();
-            if (r != null && !r.enabled) continue;
-
-            Bounds mb = mf.sharedMesh.bounds;
-            Vector3 c = mb.center;
-            Vector3 e = mb.extents;
-
-            for (int ix = -1; ix <= 1; ix += 2)
-            for (int iy = -1; iy <= 1; iy += 2)
-            for (int iz = -1; iz <= 1; iz += 2)
+            foreach (MeshFilter mf in filtros)
             {
-                Vector3 esquinaMalla = c + new Vector3(e.x * ix, e.y * iy, e.z * iz);
-                Vector3 puntoMundo = mf.transform.TransformPoint(esquinaMalla);
-                Vector3 puntoLocalRaiz = raiz.InverseTransformPoint(puntoMundo);
+                if (mf == null || mf.sharedMesh == null) continue;
+                Renderer r = mf.GetComponent<Renderer>();
+                if (r != null && !r.enabled) continue;
 
-                if (!inicializado)
-                {
-                    limitesLocales = new Bounds(puntoLocalRaiz, Vector3.zero);
-                    inicializado = true;
-                }
-                else
-                {
-                    limitesLocales.Encapsulate(puntoLocalRaiz);
-                }
+                EncapsularBoundsMalla(raiz, mf.transform, mf.sharedMesh.bounds, ref inicializado, ref limitesLocales);
+            }
+        }
+
+        SkinnedMeshRenderer[] skinned = raiz.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+        if (skinned != null)
+        {
+            foreach (SkinnedMeshRenderer smr in skinned)
+            {
+                if (smr == null || !smr.enabled) continue;
+                EncapsularBoundsMalla(raiz, null, smr.bounds, ref inicializado, ref limitesLocales);
             }
         }
 
         if (!inicializado) return;
+
+        Vector3 escala = raiz.lossyScale;
+        float minLocalX = 0.05f / Mathf.Max(0.001f, Mathf.Abs(escala.x));
+        float minLocalY = 0.05f / Mathf.Max(0.001f, Mathf.Abs(escala.y));
+        float minLocalZ = 0.05f / Mathf.Max(0.001f, Mathf.Abs(escala.z));
 
         BoxCollider box = raiz.GetComponent<BoxCollider>();
         if (box == null) box = raiz.gameObject.AddComponent<BoxCollider>();
         box.isTrigger = false;
         box.center = limitesLocales.center;
         box.size = new Vector3(
-            Mathf.Max(0.05f, limitesLocales.size.x * factorPlanta),
-            Mathf.Max(0.05f, limitesLocales.size.y),
-            Mathf.Max(0.05f, limitesLocales.size.z * factorPlanta));
+            Mathf.Max(minLocalX, limitesLocales.size.x * factorPlanta),
+            Mathf.Max(minLocalY, limitesLocales.size.y),
+            Mathf.Max(minLocalZ, limitesLocales.size.z * factorPlanta));
+    }
+
+    private static void EncapsularBoundsMalla(Transform raiz, Transform espacioMalla, Bounds mb, ref bool inicializado, ref Bounds limitesLocales)
+    {
+        Vector3 c = mb.center;
+        Vector3 e = mb.extents;
+
+        for (int ix = -1; ix <= 1; ix += 2)
+        for (int iy = -1; iy <= 1; iy += 2)
+        for (int iz = -1; iz <= 1; iz += 2)
+        {
+            Vector3 esquina = c + new Vector3(e.x * ix, e.y * iy, e.z * iz);
+            Vector3 puntoMundo = espacioMalla != null ? espacioMalla.TransformPoint(esquina) : esquina;
+            Vector3 puntoLocalRaiz = raiz.InverseTransformPoint(puntoMundo);
+
+            if (!inicializado)
+            {
+                limitesLocales = new Bounds(puntoLocalRaiz, Vector3.zero);
+                inicializado = true;
+            }
+            else
+            {
+                limitesLocales.Encapsulate(puntoLocalRaiz);
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -467,6 +569,18 @@ public class LaboratorioController : MonoBehaviour
             bordeObjetivoHUD.effectColor = destelloSistemaRestaurado
                 ? new Color(0.28f, 0.92f, 0.56f, 0.36f)
                 : new Color(0.22f, 0.78f, 0.84f, 0.24f);
+        }
+
+        if (energiaOK && codigoOK && credencialOK && !sonidoTareasCompletadasReproducido)
+        {
+            sonidoTareasCompletadasReproducido = true;
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.ReproducirSonidoVictoria();
+                UIManager.Instance.MostrarMensaje(
+                    "<b><color=#46E896>¡TAREAS COMPLETADAS!</color></b> Compuerta principal desbloqueada — Dirígete a la salida (Norte)",
+                    5.0f);
+            }
         }
     }
 

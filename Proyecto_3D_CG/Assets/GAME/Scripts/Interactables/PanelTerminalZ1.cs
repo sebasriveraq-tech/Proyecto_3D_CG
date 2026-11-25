@@ -3,7 +3,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-/// Panel de reparacion de la terminal de recepcion. Se controla con el teclado.
+/// Panel de reparacion de la terminal de recepcion (Zona 1).
+/// Permite operar los modulos A, B y C tanto con teclado como haciendo clic con el mouse.
 public class PanelTerminalZ1 : MonoBehaviour
 {
     private static PanelTerminalZ1 panelActivoZ1;
@@ -21,13 +22,37 @@ public class PanelTerminalZ1 : MonoBehaviour
     [SerializeField] private Image tarjetaC;
     private CursorLockMode bloqueoAnterior;
     private bool cursorAnterior;
+    private bool botonesConfigurados;
 
-    // Textos visibles: sirven para revisar el panel desde pruebas.
     public string TituloTexto => titulo != null ? titulo.text : "";
     public string EstadoTexto => estado != null ? estado.text : "";
     public string InstruccionesTexto => instrucciones != null ? instrucciones.text : "";
     public string MensajeTexto => mensaje != null ? mensaje.text : "";
     public bool PanelActivo => panel != null && panel.activeSelf;
+
+    private void ConfigurarBotonesMouse()
+    {
+        if (botonesConfigurados) return;
+        botonesConfigurados = true;
+
+        VincularBotonTarjeta(tarjetaA, "A");
+        VincularBotonTarjeta(tarjetaB, "B");
+        VincularBotonTarjeta(tarjetaC, "C");
+    }
+
+    private void VincularBotonTarjeta(Image tarjeta, string letra)
+    {
+        if (tarjeta == null) return;
+        tarjeta.raycastTarget = true;
+        Button btn = tarjeta.GetComponent<Button>();
+        if (btn == null) btn = tarjeta.gameObject.AddComponent<Button>();
+        btn.transition = Selectable.Transition.None;
+        btn.onClick.AddListener(() =>
+        {
+            if (panelActivoZ1 == this && PanelActivo && terminal != null && !terminal.ReparacionTerminada())
+                ProcesarLetra(letra);
+        });
+    }
 
     public void Abrir(Terminal terminalActual)
     {
@@ -35,9 +60,12 @@ public class PanelTerminalZ1 : MonoBehaviour
         if (panel == null || gameObject.scene.name != "Zona1_Recepcion") return;
         terminal = terminalActual;
 
+        ConfigurarBotonesMouse();
         panelActivoZ1 = this;
         bloqueoAnterior = Cursor.lockState;
         cursorAnterior = Cursor.visible;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
         panel.SetActive(true);
         if (UIManager.Instance != null) UIManager.Instance.OcultarPrompt();
         ActualizarPanel("");
@@ -68,7 +96,6 @@ public class PanelTerminalZ1 : MonoBehaviour
         ProcesarLetra(letra);
     }
 
-    // Recibe la letra pulsada. Devuelve false si no era la esperada.
     public bool ProcesarLetra(string letra)
     {
         if (terminal == null || terminal.ReparacionTerminada()) return false;
@@ -132,12 +159,16 @@ public class PanelTerminalZ1 : MonoBehaviour
         bool retirando = juego.cantidadModulosRetiradosZ1 < 3;
         estado.text = retirando ? "<color=#FFD17A>01  /  RETIRAR MÓDULOS</color>" : "<color=#78E6F2>02  /  REINSTALAR MÓDULOS</color>";
         instrucciones.text = retirando
-            ? "Retira los módulos en orden: <b>A -> B -> C</b>"
-            : "Instala primero el último que retiraste: <b>C -> B -> A</b>";
+            ? "Retira los módulos en orden (Teclado o Clic): <b>A -> B -> C</b>"
+            : "Instala primero el último que retiraste (LIFO): <b>C -> B -> A</b>";
+
+        // Consulta de la Stack usando estrictamente Peek, Pop y Push.
+        var elementosPila = SaveManager.ExtraerContenidoPila(juego.modulosTerminalZ1);
         string contenido = "";
-        foreach (string modulo in juego.modulosTerminalZ1)
-            contenido += (contenido == "" ? "" : "   ->   ") + modulo;
+        for (int i = 0; i < elementosPila.Count; i++)
+            contenido += (contenido == "" ? "" : "   ->   ") + elementosPila[i];
         if (contenido == "") contenido = "VACÍA";
+
         mensaje.text = "PILA  /  CIMA -> FONDO:  <b>" + contenido + "</b>\n" + resultado;
         CambiarTarjetas(terminal.SiguienteModulo());
     }

@@ -2,8 +2,9 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-/// DatosGuardado: es el "molde" del archivo JSON. Solo guarda tipos que Unity sabe convertir
-/// (string, int, float, List<string>, List<ParBool>). Las Dictionary NO se pueden guardar directo.
+/// DatosGuardado: es el "molde" del archivo JSON. Solo guarda tipos planos que Unity sabe convertir
+/// (string, int, float, List<string>, List<ParBool>). Las estructuras Stack, Queue y Dictionary
+/// no se serializan directamente: se guarda su contenido plano y se reconstruyen al cargar.
 [System.Serializable]
 public class DatosGuardado
 {
@@ -15,11 +16,12 @@ public class DatosGuardado
     public List<string> codigos = new List<string>();
     public List<string> modulosTerminalZ1 = new List<string>();
     public int cantidadModulosRetiradosZ1;
+    public List<string> bitacoraCola = new List<string>();
     public List<ParBool> puertas = new List<ParBool>();
     public List<ParBool> objetivos = new List<ParBool>();
 }
 
-/// ParBool: una pareja clave/valor para poder guardar las Dictionary como lista.
+/// ParBool: una pareja clave/valor para poder guardar las Dictionary como lista plana.
 [System.Serializable]
 public class ParBool
 {
@@ -37,20 +39,15 @@ public class ResultadoPartida
     public List<string> inventario;
 }
 
-/// SaveManager: convierte el estado del GameManager a JSON y lo vuelve a leer.
-/// Es estatico (no es MonoBehaviour) porque no necesita estar en la escena:
-/// solo recibe datos y escribe un archivo.
+/// SaveManager: convierte el estado del GameManager a JSON en StreamingAssets y lo vuelve a leer,
+/// reconstruyendo List, Stack, Queue y Dictionary en el orden exacto.
 public static class SaveManager
 {
-    // El enunciado pide que el JSON se vea dentro del proyecto: va en StreamingAssets.
-    // OJO: en un juego compilado esa carpeta queda de solo lectura; para la entrega
-    // del curso el guardado se escribe igualmente ahi.
     private static string Ruta
     {
         get { return Path.Combine(Application.streamingAssetsPath, "guardado.json"); }
     }
 
-    // Carpeta vieja donde se guardaba antes de mover el JSON a StreamingAssets.
     private static string RutaAntigua
     {
         get { return Path.Combine(Application.persistentDataPath, "guardado.json"); }
@@ -62,8 +59,6 @@ public static class SaveManager
         if (!Directory.Exists(carpeta)) Directory.CreateDirectory(carpeta);
     }
 
-    // Si todavia no existe el JSON nuevo pero hay uno en la carpeta vieja,
-    // se traslada una vez para no perder la partida en curso.
     private static void MigrarGuardadoAntiguo()
     {
         if (File.Exists(Ruta) || !File.Exists(RutaAntigua)) return;
@@ -75,6 +70,51 @@ public static class SaveManager
     {
         MigrarGuardadoAntiguo();
         return File.Exists(Ruta);
+    }
+
+    // Extrae los elementos de una Stack usando estrictamente Peek, Pop y Push (LIFO)
+    // dejando la pila original intacta y en el mismo orden.
+    public static List<string> ExtraerContenidoPila(Stack<string> pila)
+    {
+        List<string> plano = new List<string>();
+        if (pila == null || pila.Count == 0) return plano;
+
+        Stack<string> auxiliar = new Stack<string>();
+        while (pila.Count > 0)
+        {
+            string tope = pila.Peek();
+            pila.Pop();
+            plano.Add(tope);
+            auxiliar.Push(tope);
+        }
+
+        while (auxiliar.Count > 0)
+        {
+            string topeAux = auxiliar.Peek();
+            auxiliar.Pop();
+            pila.Push(topeAux);
+        }
+
+        return plano;
+    }
+
+    // Extrae los elementos de una Queue usando estrictamente Peek, Dequeue y Enqueue (FIFO)
+    // dejando la cola original intacta y en el mismo orden.
+    public static List<string> ExtraerContenidoCola(Queue<string> cola)
+    {
+        List<string> plano = new List<string>();
+        if (cola == null || cola.Count == 0) return plano;
+
+        int cantidad = cola.Count;
+        for (int i = 0; i < cantidad; i++)
+        {
+            string frente = cola.Peek();
+            cola.Dequeue();
+            plano.Add(frente);
+            cola.Enqueue(frente);
+        }
+
+        return plano;
     }
 
     public static DatosGuardado CapturarEstadoActual(string escenaOverride = null)
@@ -90,11 +130,14 @@ public static class SaveManager
         datos.inventario = new List<string>(gm.inventario);
         datos.codigos = new List<string>(gm.codigos);
 
-        // La pila se guarda como lista, empezando por el modulo de arriba.
-        datos.modulosTerminalZ1 = new List<string>(gm.modulosTerminalZ1);
+        // Stack -> contenido plano extraído con Peek/Pop/Push empezando por el tope.
+        datos.modulosTerminalZ1 = ExtraerContenidoPila(gm.modulosTerminalZ1);
         datos.cantidadModulosRetiradosZ1 = gm.cantidadModulosRetiradosZ1;
 
-        // Dictionary -> List<ParBool> (JsonUtility no serializa Dictionary).
+        // Queue -> contenido plano extraído con Peek/Dequeue/Enqueue respetando orden FIFO.
+        datos.bitacoraCola = ExtraerContenidoCola(gm.colaBitacora);
+
+        // Dictionary -> List<ParBool>.
         foreach (KeyValuePair<string, bool> par in gm.puertas)
             datos.puertas.Add(new ParBool { clave = par.Key, valor = par.Value });
 
@@ -108,7 +151,6 @@ public static class SaveManager
     {
         if (datos == null) return;
 
-        // true = JSON con saltos de linea, para poder leerlo con el Bloc de notas.
         string json = JsonUtility.ToJson(datos, true);
         AsegurarCarpeta();
         File.WriteAllText(Ruta, json);
@@ -136,23 +178,31 @@ public static class SaveManager
 
         GameManager gm = GameManager.Instance;
         gm.vidaJugador = datos.vidaJugador;
-        // Reintentar un checkpoint conserva las muertes acumuladas si corresponde.
         gm.muertes = conservarMuertes ? Mathf.Max(gm.muertes, datos.muertes) : datos.muertes;
         gm.tiempoJugadoSegundos = datos.tiempoJugadoSegundos;
         gm.escenaActual = datos.escenaActual;
 
-        // Se reconstruyen las List nuevas para no compartir referencia con el snapshot.
         gm.inventario = datos.inventario != null ? new List<string>(datos.inventario) : new List<string>();
         gm.codigos = datos.codigos != null ? new List<string>(datos.codigos) : new List<string>();
 
-        // Se agregan desde el fondo para conservar el mismo modulo arriba.
+        // Reconstruir Stack: se apila desde el fondo hacia el tope con Push() para conservar el mismo Peek().
         gm.modulosTerminalZ1.Clear();
         if (datos.modulosTerminalZ1 != null)
+        {
             for (int i = datos.modulosTerminalZ1.Count - 1; i >= 0; i--)
                 gm.modulosTerminalZ1.Push(datos.modulosTerminalZ1[i]);
+        }
         gm.cantidadModulosRetiradosZ1 = datos.cantidadModulosRetiradosZ1;
 
-        // Se reconstruyen las Dictionary a partir de la lista de parejas.
+        // Reconstruir Queue: se encola en orden FIFO con Enqueue().
+        gm.colaBitacora.Clear();
+        if (datos.bitacoraCola != null)
+        {
+            for (int i = 0; i < datos.bitacoraCola.Count; i++)
+                gm.colaBitacora.Enqueue(datos.bitacoraCola[i]);
+        }
+
+        // Reconstruir Dictionary a partir de las parejas clave/valor.
         gm.puertas.Clear();
         if (datos.puertas != null)
             foreach (ParBool par in datos.puertas)
@@ -196,7 +246,6 @@ public static class SaveManager
 
     public static void BorrarGuardado()
     {
-        // Se borran las dos rutas: si quedara la vieja, volveria a migrarse al continuar.
         if (ExisteGuardado()) File.Delete(Ruta);
         if (File.Exists(RutaAntigua)) File.Delete(RutaAntigua);
     }

@@ -100,6 +100,11 @@ public class UIManager : MonoBehaviour
         AjustesUI ajustes = GetComponent<AjustesUI>();
         if (ajustes != null) ajustes.Inicializar();
         ConfigurarFuenteUI();
+
+        if (sonidoVictoria == null)
+            sonidoVictoria = Resources.Load<AudioClip>("Zona2/Ambience/SFX_Victoria_Z2");
+        if (sonidoDerrota == null)
+            sonidoDerrota = Resources.Load<AudioClip>("Zona2/Ambience/SFX_Derrota_Z2");
     }
 
     private void ConfigurarFuenteUI()
@@ -124,6 +129,30 @@ public class UIManager : MonoBehaviour
         fuenteUI.pitch = Mathf.Clamp(pitch, 0.5f, 2f);
         fuenteUI.volume = factor;
         fuenteUI.PlayOneShot(sonidoClicUI, 0.55f);
+    }
+
+    public void ReproducirSonidoVictoria()
+    {
+        if (sonidoVictoria == null)
+            sonidoVictoria = Resources.Load<AudioClip>("Zona2/Ambience/SFX_Victoria_Z2");
+
+        float factor = Mathf.Max(GameSettingsManager.FactorMusica, GameSettingsManager.FactorEfectos);
+        ReproducirStinger(sonidoVictoria, factor, 0.95f);
+    }
+
+    private void PausarAudioDeEscenaParaResultado()
+    {
+        Scene3Controller z3 = FindFirstObjectByType<Scene3Controller>();
+        AudioClip clipZ3 = z3 != null ? z3.sonidoVictoria : null;
+
+        AudioSource[] fuentes = FindObjectsByType<AudioSource>(FindObjectsSortMode.None);
+        for (int i = 0; i < fuentes.Length; i++)
+        {
+            AudioSource src = fuentes[i];
+            if (src == null || src == fuenteUI) continue;
+            if (clipZ3 != null && src.clip == clipZ3 && src.isPlaying) continue;
+            if (src.isPlaying) src.Pause();
+        }
     }
 
     private void ReproducirStinger(AudioClip clip, float factorVolumen, float escala)
@@ -331,6 +360,17 @@ public class UIManager : MonoBehaviour
         if (panelTeclado != null) panelTeclado.Abrir(longitud, validar, alCerrar);
     }
 
+    public void AbrirTerminalZ1(PanelTerminalZ1 panel, Terminal terminal)
+    {
+        if (panel == null) panel = GetComponent<PanelTerminalZ1>();
+        if (panel != null) panel.Abrir(terminal);
+    }
+
+    public void AbrirMiniJuegoZ2(PanelMiniJuegoZ2 panel)
+    {
+        if (panel != null) panel.Abrir();
+    }
+
     // Los paneles finales tienen botones: se congela el juego y se libera el mouse para poder pulsarlos.
     public void MostrarVictoria()
     {
@@ -338,12 +378,16 @@ public class UIManager : MonoBehaviour
         PanelTerminalZ1.CerrarPanelActivoPorEventoExterno();
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarResultadoFinal("Victoria", estadisticasVictoria, rutaVictoria);
+        PausarAudioDeEscenaParaResultado();
         if (!stingerResultadoReproducido)
         {
             stingerResultadoReproducido = true;
             Scene3Controller z3 = FindFirstObjectByType<Scene3Controller>();
             if (z3 == null || z3.sonidoVictoria == null)
-                ReproducirStinger(sonidoVictoria, GameSettingsManager.FactorMusica, 0.72f);
+            {
+                float factor = Mathf.Max(GameSettingsManager.FactorMusica, GameSettingsManager.FactorEfectos);
+                ReproducirStinger(sonidoVictoria, factor, 0.95f);
+            }
         }
         MostrarSolo(panelVictoria);
         CongelarParaBoton();
@@ -388,10 +432,13 @@ public class UIManager : MonoBehaviour
         PanelTerminalZ1.CerrarPanelActivoPorEventoExterno();
         PanelMiniJuegoZ2.CerrarPanelActivoPorEventoExterno();
         MostrarResultadoFinal("Derrota", estadisticasDerrota, rutaDerrota);
+        PausarAudioDeEscenaParaResultado();
         if (!stingerResultadoReproducido)
         {
             stingerResultadoReproducido = true;
-            ReproducirStinger(sonidoDerrota, GameSettingsManager.FactorEfectos, 0.72f);
+            if (fuenteUI != null) fuenteUI.Stop();
+            float factor = Mathf.Max(GameSettingsManager.FactorMusica, GameSettingsManager.FactorEfectos);
+            ReproducirStinger(sonidoDerrota, factor, 0.95f);
         }
         MostrarSolo(panelDerrota);
         CongelarParaBoton();

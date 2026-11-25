@@ -11,6 +11,14 @@ public class AgentAnimatorZ3 : MonoBehaviour
     [SerializeField] private float velocidadMinima = 0.1f;
     [SerializeField] private float velocidadCaminar = 3.5f;
 
+    private void Awake()
+    {
+        if (animator == null)
+            animator = GetComponentInChildren<Animator>();
+        if (navigation == null)
+            navigation = GetComponent<NavMeshAgent>();
+    }
+
     private void Update()
     {
         if (animator == null || navigation == null)
@@ -35,6 +43,9 @@ public class AgentAnimatorZ3 : MonoBehaviour
     public void Atacar()
     {
         if (animator != null)
+        {
+            animator.ResetTrigger("Attack");
             animator.SetTrigger("Attack");
+        }
     }
 }
