@@ -34582,15 +34582,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: ae7727d83bfb58f45b2b0589b0bdb123, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 8.35
+      value: 8.187
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: ae7727d83bfb58f45b2b0589b0bdb123, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 0.006
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: ae7727d83bfb58f45b2b0589b0bdb123, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 11.80
+      value: 11.8
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: ae7727d83bfb58f45b2b0589b0bdb123, type: 3}
       propertyPath: m_LocalRotation.w
@@ -39647,6 +39647,7 @@ MonoBehaviour:
   agente: {fileID: 1762627171}
   radioAcercamiento: {fileID: 8300000, guid: f24bfb12a40748309087df42cd294150, type: 3}
   musicaPersecucion: {fileID: 8300000, guid: 48c4aa839c2c4a3989e9333760ec090f, type: 3}
+  volumenMusica: 0.65
 --- !u!1001 &1888065825
 PrefabInstance:
   m_ObjectHideFlags: 0
