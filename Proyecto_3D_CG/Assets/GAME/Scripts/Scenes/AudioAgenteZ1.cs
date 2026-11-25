@@ -8,7 +8,7 @@ public sealed class AudioAgenteZ1 : MonoBehaviour
 
     private const float AlcanceRadio = 12f;
     private const float VolumenRadio = 0.70f;
-    private const float VolumenMusica = 0.65f;
+    [SerializeField, Range(0f, 1f)] private float volumenMusica = 0.65f;
     private const float DuracionDesvanecimiento = 2f;
 
     private PlayerHealth jugador;
@@ -69,7 +69,7 @@ public sealed class AudioAgenteZ1 : MonoBehaviour
             enPersecucion = true;
             nivelMusica = 1f;
             if (radio.isPlaying) radio.Stop();
-            musica.volume = VolumenMusica * GameSettingsManager.FactorMusica;
+            musica.volume = volumenMusica * GameSettingsManager.FactorMusica;
             if (!musica.isPlaying) musica.Play();
             return;
         }
@@ -79,7 +79,7 @@ public sealed class AudioAgenteZ1 : MonoBehaviour
         {
             if (!enPersecucion)
                 nivelMusica = Mathf.MoveTowards(nivelMusica, 0f, Time.deltaTime / DuracionDesvanecimiento);
-            musica.volume = nivelMusica * VolumenMusica * GameSettingsManager.FactorMusica;
+            musica.volume = nivelMusica * volumenMusica * GameSettingsManager.FactorMusica;
             if (nivelMusica > 0f) return;
             musica.Stop();
         }

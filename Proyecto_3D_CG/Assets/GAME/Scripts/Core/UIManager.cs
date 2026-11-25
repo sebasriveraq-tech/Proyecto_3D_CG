@@ -162,6 +162,14 @@ public class UIManager : MonoBehaviour
     private void Start()
     {
         string escena = gameObject.scene.name;
+
+        if (escena == "Zona1_Recepcion")
+        {
+            MostrarMensaje(
+                "Parece que la recepción la están convirtiendo en figuras geométricas minimalistas. Debes escapar antes de que te atrapen.",
+                5f);
+        }
+
         esZona3 = escena == "Zona3_Control";
         if (escena == "Zona1_Recepcion" || esZona3)
         {
