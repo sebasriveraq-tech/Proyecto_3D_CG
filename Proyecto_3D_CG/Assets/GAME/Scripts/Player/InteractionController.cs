@@ -119,7 +119,7 @@ public class InteractionController : MonoBehaviour
             }
         }
 
-        // Actualizar la interfaz cuando cambia el objetivo o su texto de prompt dinamico.
+        // Actualizar la interfaz cuando cambia el objetivo o su aviso dinámico.
         if (nuevoObjetivo != objetivoActual)
         {
             objetivoActual = nuevoObjetivo;
@@ -148,7 +148,7 @@ public class InteractionController : MonoBehaviour
 
     private void OnDisable()
     {
-        // Al cambiar de escena el prompt no debe quedar pegado en pantalla.
+        // Al cambiar de escena el aviso se oculta.
         ultimoPromptMostrado = null;
         if (UIManager.Instance != null) UIManager.Instance.OcultarPrompt();
     }
