@@ -1,10 +1,9 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-/// InstaladorPlayerVisual: al arrancar el juego y cada vez que se carga una
-/// escena, busca al objeto "Player" y le monta el modelo animado + PlayerVisual.
-/// Asi TODAS las zonas ven al mismo player animado sin tocar las escenas
-/// ni el prefab Player (que tambien usan los companeros).
+//al arrancar el juego y cada vez que se carga una escena, busca al objeto "Player" y le monta el modelo animado + PlayerVisual.
+
+
 public static class InstaladorPlayerVisual
 {
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]

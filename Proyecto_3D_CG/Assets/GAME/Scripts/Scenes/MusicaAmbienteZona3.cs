@@ -1,11 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-/// Música de ambientación de la Zona 3.
-/// - Suena en bucle desde que empieza la escena.
-/// - BajarVolumen(): baja el volumen para que se oigan los sonidos de los enemigos
-///   (se llama al restaurar la energía, cuando se activan los agentes).
-/// - Se apaga con un fundido cuando se abre el panel de victoria del UIManager.
+
 [RequireComponent(typeof(AudioSource))]
 public class MusicaAmbienteZona3 : MonoBehaviour
 {
@@ -30,7 +26,7 @@ public class MusicaAmbienteZona3 : MonoBehaviour
 
         fuente.loop = true;
         fuente.playOnAwake = false;
-        fuente.spatialBlend = 0f;          // música 2D: se oye igual en toda la sala
+        fuente.spatialBlend = 0f;          // música que se oye igual en toda la sala
         fuente.volume = volumenNormal;
     }
 
@@ -55,14 +51,14 @@ public class MusicaAmbienteZona3 : MonoBehaviour
         }
     }
 
-    /// Baja un poco el volumen (se enlaza al Al Completar de la etapa 0 del Scene3Controller).
+    
     public void BajarVolumen()
     {
         if (finalizada) return;
         CambiarVolumen(volumenReducido, duracionCambioVolumen, false);
     }
 
-    /// Devuelve el volumen normal (opcional).
+    
     public void SubirVolumen()
     {
         if (finalizada) return;

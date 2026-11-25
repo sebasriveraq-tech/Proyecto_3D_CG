@@ -1,6 +1,5 @@
 using UnityEngine;
 
-/// Recogible: almacena el item en GameManager, actualiza el inventario y se retira de la escena.
 public class Recogible : Interactable
 {
     [Header("Datos del item")]

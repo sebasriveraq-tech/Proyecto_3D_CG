@@ -3,10 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// ArmarioEscondite: armario metálico a escala real del jugador.
-/// Al presionar E abre la puerta, introduce al jugador al punto de referencia interno,
-/// cierra la puerta, bloquea el movimiento regular y ajusta la cámara para evitar clipping.
-/// Al volver a presionar E, abre la puerta, saca al jugador y vuelve a cerrar.
 public class ArmarioEscondite : Interactable
 {
     private enum EstadoArmario
@@ -190,8 +186,6 @@ public class ArmarioEscondite : Interactable
         mensajePrompt = "Presiona E para esconderte en el armario";
     }
 
-    /// Evita entrar por la parte trasera o los laterales: valida que el jugador esté físicamente frente a la puerta
-    /// y mirando hacia el armario mediante Vector3.Dot.
     public override bool PuedeInteractuar(Transform origenJugador)
     {
         if (estado == EstadoArmario.Oculto)

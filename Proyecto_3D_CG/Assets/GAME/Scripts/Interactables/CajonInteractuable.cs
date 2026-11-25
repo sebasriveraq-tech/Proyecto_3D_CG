@@ -1,8 +1,6 @@
 using System.Collections;
 using UnityEngine;
 
-/// Contenedor / gabinete científico interactivo que coordina la apertura del cofre 3D,
-/// el deslizamiento de su bandeja interna y el acceso al objeto contenido.
 public class CajonInteractuable : Interactable
 {
     private const string ParamAbierto = "Abierto";

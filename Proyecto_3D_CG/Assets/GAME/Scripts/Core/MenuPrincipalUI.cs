@@ -2,8 +2,6 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// MenuPrincipalUI: estado de los botones del menu principal.
-/// "Continuar" solo se puede pulsar cuando existe una partida guardada.
 public class MenuPrincipalUI : MonoBehaviour
 {
     [Header("Botones")]

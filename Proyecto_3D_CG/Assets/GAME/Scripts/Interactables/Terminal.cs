@@ -1,7 +1,5 @@
 using UnityEngine;
 
-/// Terminal: entrega un código. En Zona 1 usa PanelTerminalZ1; en Zona 2 abre el minijuego de Hackeo de Frecuencia
-/// para desbloquear la compuerta de salida (Código LAB-2381).
 public class Terminal : Interactable
 {
     [Header("Codigo que entrega")]

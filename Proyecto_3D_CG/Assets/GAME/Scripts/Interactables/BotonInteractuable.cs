@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.Events;
 
-/// Botón de mundo reutilizable: ofrece una señal visual integrada con su consola 3D, sonido y evento configurable.
 public class BotonInteractuable : Interactable
 {
     [Header("Acción")]

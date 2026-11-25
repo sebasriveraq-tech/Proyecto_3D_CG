@@ -2,8 +2,6 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
-/// ControlPaneles: teclas que abren los paneles del Canvas (ENTER para empezar, ESC para pausar, I para el inventario)
-/// y metodos que usan los botones de los paneles de Victoria y Derrota.
 public class ControlPaneles : MonoBehaviour
 {
     private void Update()

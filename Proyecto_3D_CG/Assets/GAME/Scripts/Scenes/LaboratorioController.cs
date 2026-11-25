@@ -4,12 +4,12 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.UI;
 
-/// <summary>
+
 /// Controla la mecánica local del laboratorio (Zona 2): energía, alarma, condiciones de salida,
 /// mamparas de vidrio de Contención, luces parpadeantes en techo (Energía, Servidores y pasillo central),
 /// chispas de cortocircuito y sonido ambiental de emergencia, panel visual de objetivos,
 /// prevención de culling/muros invisibles y ajuste estricto de colliders.
-/// </summary>
+
 public class LaboratorioController : MonoBehaviour
 {
     [Header("Referencias de Zona 2")]
@@ -589,9 +589,9 @@ public class LaboratorioController : MonoBehaviour
         ActualizarPanelObjetivosHUD(true);
     }
 
-    // -------------------------------------------------------------------------
+
     // LUCES PARPADEANTES EN EL TECHO Y CHISPAS DE CORTOCIRCUITO
-    // -------------------------------------------------------------------------
+ 
     private void EnlazarLucesParpadeantesTecho()
     {
         lucesTechoParpadeantes.Clear();

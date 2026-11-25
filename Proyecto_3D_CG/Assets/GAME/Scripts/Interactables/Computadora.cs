@@ -1,7 +1,5 @@
 using UnityEngine;
 
-/// Computadora: al interactuar abre el panel de teclado numérico (a través del UIManager).
-/// El código se valida en el Scene3Controller (Dictionary de códigos).
 public class Computadora : Interactable
 {
     [Header("Escena")]

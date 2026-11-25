@@ -1,6 +1,5 @@
 using UnityEngine;
 
-/// Redirige la interacción y el aviso de un modelo 3D con collider sólido hacia su componente interactuable lógico.
 public class InteractableRelay : Interactable
 {
     public Interactable destino;
