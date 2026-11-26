@@ -72,6 +72,7 @@ public class UIManager : MonoBehaviour
     private bool resultadoFinalRegistrado;
     private bool stingerResultadoReproducido;
     private AudioSource fuenteUI;
+    private readonly Queue<string> colaMensajes = new Queue<string>();
     private Coroutine rutinaMensaje;
     private Coroutine rutinaToastCheckpoint;
     private Coroutine rutinaTransicionVida;
@@ -620,17 +621,26 @@ public class UIManager : MonoBehaviour
 
     public void MostrarMensaje(string mensaje, float duracion = 2f)
     {
-        if (textoMensaje == null) return;
+        if (textoMensaje == null || string.IsNullOrEmpty(mensaje)) return;
+
+        colaMensajes.Enqueue(mensaje);
         if (rutinaMensaje != null) StopCoroutine(rutinaMensaje);
-        rutinaMensaje = StartCoroutine(RutinaMensaje(mensaje, duracion));
+        rutinaMensaje = StartCoroutine(RutinaMensaje(duracion));
     }
 
-    private IEnumerator RutinaMensaje(string mensaje, float duracion)
+    private IEnumerator RutinaMensaje(float duracion)
     {
-        textoMensaje.text = mensaje;
-        if (fondoMensaje != null) fondoMensaje.SetActive(true);
+        while (colaMensajes.Count > 0)
+        {
+            string actual = colaMensajes.Peek();
+            colaMensajes.Dequeue();
 
-        yield return new WaitForSeconds(duracion);
+            textoMensaje.text = actual;
+            if (fondoMensaje != null) fondoMensaje.SetActive(true);
+
+            if (colaMensajes.Count == 0)
+                yield return new WaitForSeconds(duracion);
+        }
 
         textoMensaje.text = "";
         if (fondoMensaje != null) fondoMensaje.SetActive(false);

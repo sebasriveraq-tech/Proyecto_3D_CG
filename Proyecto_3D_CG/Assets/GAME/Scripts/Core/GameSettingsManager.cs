@@ -29,7 +29,6 @@ public class GameSettingsManager : MonoBehaviour
     public event Action OnConfiguracionCambiada;
 
     private readonly Dictionary<int, float> volumenesBase = new Dictionary<int, float>();
-    private AudioSource fuenteAmbienteMenu;
     private AudioSource fuentePreviewUI;
     private float temporizadorEscaneo;
     private Coroutine rutinaFadeMusica;
@@ -98,13 +97,6 @@ public class GameSettingsManager : MonoBehaviour
 
     private void ConfigurarFuentesInternas()
     {
-        fuenteAmbienteMenu = gameObject.AddComponent<AudioSource>();
-        fuenteAmbienteMenu.loop = true;
-        fuenteAmbienteMenu.playOnAwake = false;
-        fuenteAmbienteMenu.spatialBlend = 0f;
-        fuenteAmbienteMenu.volume = 0.16f;
-        volumenesBase[fuenteAmbienteMenu.GetInstanceID()] = 0.16f;
-
         fuentePreviewUI = gameObject.AddComponent<AudioSource>();
         fuentePreviewUI.loop = false;
         fuentePreviewUI.playOnAwake = false;
@@ -115,31 +107,11 @@ public class GameSettingsManager : MonoBehaviour
 
     private void AlCargarEscena(Scene escena, LoadSceneMode modo)
     {
-        ActualizarAmbienteMenu(escena.name);
         AplicarConfiguracionEnTiempoReal();
         if (MultiplicadorTransicionMusica < 0.99f)
         {
             if (rutinaFadeMusica != null) StopCoroutine(rutinaFadeMusica);
             rutinaFadeMusica = StartCoroutine(FundirMusicaA(1f, 0.65f));
-        }
-    }
-
-    private void ActualizarAmbienteMenu(string nombreEscena)
-    {
-        if (fuenteAmbienteMenu == null) return;
-
-        bool esMenu = string.Equals(nombreEscena, "Menu", StringComparison.OrdinalIgnoreCase);
-        if (esMenu)
-        {
-            if (fuenteAmbienteMenu.clip == null)
-                fuenteAmbienteMenu.clip = Resources.Load<AudioClip>("Musica_Menu");
-
-            if (fuenteAmbienteMenu.clip != null && !fuenteAmbienteMenu.isPlaying)
-                fuenteAmbienteMenu.Play();
-        }
-        else if (fuenteAmbienteMenu.isPlaying)
-        {
-            fuenteAmbienteMenu.Stop();
         }
     }
 
@@ -213,7 +185,6 @@ public class GameSettingsManager : MonoBehaviour
     public void AplicarConfiguracionEnTiempoReal()
     {
         AudioListener.volume = silenciado ? 0f : volumenGeneral;
-        ActualizarAmbienteMenu(SceneManager.GetActiveScene().name);
         SincronizarFuentesDeEscena();
 
         PlayerController jugador = FindFirstObjectByType<PlayerController>();

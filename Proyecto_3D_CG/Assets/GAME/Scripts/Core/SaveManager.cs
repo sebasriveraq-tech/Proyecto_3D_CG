@@ -11,9 +11,9 @@ public class DatosGuardado
     public float tiempoJugadoSegundos;
     public List<string> inventario = new List<string>();
     public List<string> codigos = new List<string>();
-    public List<string> modulosTerminalZ1 = new List<string>();
+    public string[] modulosTerminalZ1 = new string[0];
     public int cantidadModulosRetiradosZ1;
-    public List<string> bitacoraCola = new List<string>();
+    public string[] bitacoraCola = new string[0];
     public List<ParBool> puertas = new List<ParBool>();
     public List<ParBool> objetivos = new List<ParBool>();
 }
@@ -68,17 +68,19 @@ public static class SaveManager
 
     // Extrae los elementos de una Stack usando estrictamente Peek, Pop y Push (LIFO)
     // dejando la pila original intacta y en el mismo orden.
-    public static List<string> ExtraerContenidoPila(Stack<string> pila)
+    public static string[] ExtraerContenidoPila(Stack<string> pila)
     {
-        List<string> plano = new List<string>();
-        if (pila == null || pila.Count == 0) return plano;
+        if (pila == null || pila.Count == 0) return new string[0];
 
+        string[] plano = new string[pila.Count];
         Stack<string> auxiliar = new Stack<string>();
+        int idx = 0;
         while (pila.Count > 0)
         {
             string tope = pila.Peek();
             pila.Pop();
-            plano.Add(tope);
+            plano[idx] = tope;
+            idx++;
             auxiliar.Push(tope);
         }
 
@@ -94,17 +96,17 @@ public static class SaveManager
 
     // Extrae los elementos de una Queue usando estrictamente Peek, Dequeue y Enqueue (FIFO)
     // dejando la cola original intacta y en el mismo orden.
-    public static List<string> ExtraerContenidoCola(Queue<string> cola)
+    public static string[] ExtraerContenidoCola(Queue<string> cola)
     {
-        List<string> plano = new List<string>();
-        if (cola == null || cola.Count == 0) return plano;
+        if (cola == null || cola.Count == 0) return new string[0];
 
         int cantidad = cola.Count;
+        string[] plano = new string[cantidad];
         for (int i = 0; i < cantidad; i++)
         {
             string frente = cola.Peek();
             cola.Dequeue();
-            plano.Add(frente);
+            plano[i] = frente;
             cola.Enqueue(frente);
         }
 
@@ -183,7 +185,7 @@ public static class SaveManager
         gm.modulosTerminalZ1.Clear();
         if (datos.modulosTerminalZ1 != null)
         {
-            for (int i = datos.modulosTerminalZ1.Count - 1; i >= 0; i--)
+            for (int i = datos.modulosTerminalZ1.Length - 1; i >= 0; i--)
                 gm.modulosTerminalZ1.Push(datos.modulosTerminalZ1[i]);
         }
         gm.cantidadModulosRetiradosZ1 = datos.cantidadModulosRetiradosZ1;
@@ -192,7 +194,7 @@ public static class SaveManager
         gm.colaBitacora.Clear();
         if (datos.bitacoraCola != null)
         {
-            for (int i = 0; i < datos.bitacoraCola.Count; i++)
+            for (int i = 0; i < datos.bitacoraCola.Length; i++)
                 gm.colaBitacora.Enqueue(datos.bitacoraCola[i]);
         }
 

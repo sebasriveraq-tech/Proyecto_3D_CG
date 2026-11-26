@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -160,11 +161,21 @@ public class PanelTerminalZ1 : MonoBehaviour
             ? "Retira los módulos en orden (Teclado o Clic): <b>A -> B -> C</b>"
             : "Instala primero el último que retiraste (LIFO): <b>C -> B -> A</b>";
 
-        // Consulta de la Stack usando estrictamente Peek, Pop y Push.
-        var elementosPila = SaveManager.ExtraerContenidoPila(juego.modulosTerminalZ1);
         string contenido = "";
-        for (int i = 0; i < elementosPila.Count; i++)
-            contenido += (contenido == "" ? "" : "   ->   ") + elementosPila[i];
+        Stack<string> auxiliar = new Stack<string>();
+        while (juego.modulosTerminalZ1.Count > 0)
+        {
+            string tope = juego.modulosTerminalZ1.Peek();
+            juego.modulosTerminalZ1.Pop();
+            contenido += (contenido == "" ? "" : "   ->   ") + tope;
+            auxiliar.Push(tope);
+        }
+        while (auxiliar.Count > 0)
+        {
+            string topeAux = auxiliar.Peek();
+            auxiliar.Pop();
+            juego.modulosTerminalZ1.Push(topeAux);
+        }
         if (contenido == "") contenido = "VACÍA";
 
         mensaje.text = "PILA  /  CIMA -> FONDO:  <b>" + contenido + "</b>\n" + resultado;
