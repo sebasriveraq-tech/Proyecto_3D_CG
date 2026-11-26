@@ -17,6 +17,8 @@ public class MusicaAmbienteZona3 : MonoBehaviour
 
     private AudioSource fuente;
     private Coroutine rutinaVolumen;
+    private float volumenBaseActual;
+    private bool pausadaPorTiempo;
     private bool finalizada;
 
     private void Awake()
@@ -27,7 +29,9 @@ public class MusicaAmbienteZona3 : MonoBehaviour
         fuente.loop = true;
         fuente.playOnAwake = false;
         fuente.spatialBlend = 0f;          // música que se oye igual en toda la sala
+        volumenBaseActual = volumenNormal;
         fuente.volume = volumenNormal;
+        GameSettingsManager.GarantizarInstancia().RegistrarFuenteConVolumenBase(fuente, volumenBaseActual);
     }
 
     private void Start()
@@ -48,6 +52,23 @@ public class MusicaAmbienteZona3 : MonoBehaviour
             && UIManager.Instance.panelVictoria.activeInHierarchy)
         {
             Finalizar();
+            return;
+        }
+
+        if (Time.timeScale == 0f)
+        {
+            if (!pausadaPorTiempo && fuente != null && fuente.isPlaying)
+            {
+                fuente.Pause();
+                pausadaPorTiempo = true;
+            }
+            return;
+        }
+
+        if (pausadaPorTiempo)
+        {
+            if (fuente != null) fuente.UnPause();
+            pausadaPorTiempo = false;
         }
     }
 
@@ -80,18 +101,27 @@ public class MusicaAmbienteZona3 : MonoBehaviour
     // Usa tiempo sin escala: el panel de victoria congela el juego (Time.timeScale = 0)
     private IEnumerator Fundir(float destino, float duracion, bool detenerAlFinal)
     {
-        float inicio = fuente.volume;
+        float inicio = volumenBaseActual > 0f ? volumenBaseActual : fuente.volume;
         float total = Mathf.Max(0.01f, duracion);
         float t = 0f;
 
         while (t < total)
         {
             t += Time.unscaledDeltaTime;
-            fuente.volume = Mathf.Lerp(inicio, destino, t / total);
+            volumenBaseActual = Mathf.Lerp(inicio, destino, t / total);
+            if (GameSettingsManager.Instance != null)
+                GameSettingsManager.Instance.RegistrarFuenteConVolumenBase(fuente, volumenBaseActual);
+            else
+                fuente.volume = volumenBaseActual;
             yield return null;
         }
 
-        fuente.volume = destino;
+        volumenBaseActual = destino;
+        if (GameSettingsManager.Instance != null)
+            GameSettingsManager.Instance.RegistrarFuenteConVolumenBase(fuente, volumenBaseActual);
+        else
+            fuente.volume = destino;
+
         if (detenerAlFinal) fuente.Stop();
         rutinaVolumen = null;
     }

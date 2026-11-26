@@ -15,41 +15,40 @@ public class AudioAgenteZ3 : MonoBehaviour
     [SerializeField] private float volumenRadio = 0.70f;
     [SerializeField] private float volumenMusica = 0.65f;
 
+    private const float DuracionDesvanecimiento = 2f;
+
     private PlayerHealth jugador;
+    private AgentController[] agentesPrincipales = System.Array.Empty<AgentController>();
     private AudioSource radio;
     private AudioSource musica;
 
-    private bool musicaIniciada;
+    private float nivelMusica;
+    private bool enPersecucion;
     private bool audioPausado;
 
     private void Start()
     {
         jugador = GetComponent<PlayerHealth>();
-
         if (jugador == null)
             jugador = FindFirstObjectByType<PlayerHealth>();
 
-        if (jugador == null || radioAcercamiento == null ||
-            musicaPersecucion == null)
+        agentesPrincipales = FindObjectsByType<AgentController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (enemigos == null || enemigos.Length == 0)
+            enemigos = FindObjectsByType<AgentControllerEtapa1>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+        if (jugador == null || radioAcercamiento == null || musicaPersecucion == null)
         {
             Debug.LogWarning("AudioAgenteZ3: faltan referencias.");
             enabled = false;
             return;
         }
 
-        radio = CrearFuente(
-            radioAcercamiento,
-            1f
-        );
-
-        radio.rolloffMode = AudioRolloffMode.Linear;
-        radio.minDistance = 1.5f;
+        radio = CrearFuente("Audio_Radio_Acercamiento_Z3", radioAcercamiento, 1f);
+        radio.rolloffMode = AudioRolloffMode.Custom;
         radio.maxDistance = alcanceRadio;
+        radio.SetCustomCurve(AudioSourceCurveType.CustomRolloff, AnimationCurve.Constant(0f, 1f, 1f));
 
-        musica = CrearFuente(
-            musicaPersecucion,
-            0f
-        );
+        musica = CrearFuente("Audio_Musica_Persecucion_Z3", musicaPersecucion, 0f);
     }
 
     private void LateUpdate()
@@ -81,96 +80,123 @@ public class AudioAgenteZ3 : MonoBehaviour
             audioPausado = false;
         }
 
-        AgentControllerEtapa1 enemigoCercano = null;
+        Transform enemigoCercano = null;
         float menorDistancia = alcanceRadio;
+        bool hayPersecucionActiva = false;
+        bool todosEnPatrulla = true;
 
-        bool hayPersecucion = false;
-
-        foreach (AgentControllerEtapa1 enemigo in enemigos)
+        if (agentesPrincipales != null)
         {
-            if (enemigo == null || !enemigo.isActiveAndEnabled)
-                continue;
-
-            if (enemigo.EstaActivado)
+            for (int i = 0; i < agentesPrincipales.Length; i++)
             {
-                hayPersecucion = true;
-                continue;
-            }
+                AgentController ag = agentesPrincipales[i];
+                if (ag == null || !ag.isActiveAndEnabled)
+                    continue;
 
-            float distancia = Vector3.Distance(
-                jugador.transform.position,
-                enemigo.transform.position
-            );
+                AgentState est = ag.EstadoActual;
+                if (est == AgentState.Persecucion || est == AgentState.Ataque)
+                    hayPersecucionActiva = true;
+                if (est != AgentState.Patrulla)
+                    todosEnPatrulla = false;
 
-            if (distancia < menorDistancia)
-            {
-                menorDistancia = distancia;
-                enemigoCercano = enemigo;
+                float d = Vector3.Distance(jugador.transform.position, ag.transform.position);
+                if (d < menorDistancia)
+                {
+                    menorDistancia = d;
+                    enemigoCercano = ag.transform;
+                }
             }
         }
 
-        // La persecucion tiene prioridad sobre la radio.
-        if (hayPersecucion)
+        if (enemigos != null)
         {
-            radio.Stop();
-            musica.volume = volumenMusica *
-                GameSettingsManager.FactorMusica;
-
-            if (!musicaIniciada)
+            for (int i = 0; i < enemigos.Length; i++)
             {
-                musica.Play();
-                musicaIniciada = true;
-            }
+                AgentControllerEtapa1 enemigo = enemigos[i];
+                if (enemigo == null || !enemigo.isActiveAndEnabled || !enemigo.EstaActivado)
+                    continue;
 
+                AgentState est = enemigo.EstadoActual;
+                if (est == AgentState.Persecucion || est == AgentState.Ataque)
+                    hayPersecucionActiva = true;
+                if (est != AgentState.Patrulla)
+                    todosEnPatrulla = false;
+
+                float d = Vector3.Distance(jugador.transform.position, enemigo.transform.position);
+                if (d < menorDistancia)
+                {
+                    menorDistancia = d;
+                    enemigoCercano = enemigo.transform;
+                }
+            }
+        }
+
+        float factorTransicion = GameSettingsManager.Instance != null
+            ? GameSettingsManager.Instance.MultiplicadorTransicionMusica
+            : 1f;
+
+        if (hayPersecucionActiva)
+        {
+            enPersecucion = true;
+            nivelMusica = 1f;
+            if (radio.isPlaying) radio.Stop();
+            musica.volume = volumenMusica * GameSettingsManager.FactorMusica * factorTransicion;
+            if (!musica.isPlaying)
+                musica.Play();
             return;
         }
 
-        // Si no hay persecucion, se controla la radio por cercania.
-        musica.volume = 0f;
+        if (todosEnPatrulla)
+            enPersecucion = false;
 
-        if (musica.isPlaying)
-            musica.Stop();
+        if (enPersecucion || nivelMusica > 0f)
+        {
+            if (!enPersecucion)
+                nivelMusica = Mathf.MoveTowards(nivelMusica, 0f, Time.deltaTime / DuracionDesvanecimiento);
 
-        musicaIniciada = false;
+            musica.volume = nivelMusica * volumenMusica * GameSettingsManager.FactorMusica * factorTransicion;
+            if (nivelMusica > 0f)
+                return;
+
+            if (musica.isPlaying)
+                musica.Stop();
+        }
 
         if (enemigoCercano != null)
         {
-            radio.transform.SetParent(enemigoCercano.transform);
-            radio.transform.localPosition = Vector3.zero;
+            radio.transform.position = enemigoCercano.position;
+            float cercania = Mathf.InverseLerp(alcanceRadio, 1.5f, menorDistancia);
+            radio.volume = cercania * volumenRadio * GameSettingsManager.FactorEfectos;
 
-            float cercania = Mathf.InverseLerp(
-                alcanceRadio,
-                1.5f,
-                menorDistancia
-            );
-
-            radio.volume = cercania * volumenRadio *
-                GameSettingsManager.FactorEfectos;
-
-            if (!radio.isPlaying)
-                radio.Play();
+            if (cercania > 0f)
+            {
+                if (!radio.isPlaying)
+                    radio.Play();
+            }
+            else if (radio.isPlaying)
+            {
+                radio.Stop();
+            }
         }
-        else
+        else if (radio.isPlaying)
         {
             radio.Stop();
         }
     }
 
-    private AudioSource CrearFuente(AudioClip clip, float mezclaEspacial)
+    private AudioSource CrearFuente(string nombreObjeto, AudioClip clip, float mezclaEspacial)
     {
-        GameObject objeto = new GameObject("AudioAgenteZ3");
-        objeto.transform.SetParent(transform);
+        GameObject objeto = new GameObject(nombreObjeto);
+        objeto.transform.SetParent(transform, false);
         objeto.transform.localPosition = Vector3.zero;
 
         AudioSource fuente = objeto.AddComponent<AudioSource>();
-
         fuente.clip = clip;
         fuente.loop = true;
         fuente.playOnAwake = false;
         fuente.spatialBlend = mezclaEspacial;
         fuente.dopplerLevel = 0f;
         fuente.volume = 0f;
-
         return fuente;
     }
 
@@ -187,7 +213,8 @@ public class AudioAgenteZ3 : MonoBehaviour
         if (musica != null)
             musica.Stop();
 
-        musicaIniciada = false;
+        nivelMusica = 0f;
+        enPersecucion = false;
         audioPausado = false;
     }
 }

@@ -317,7 +317,13 @@ public class GameSettingsManager : MonoBehaviour
     private static bool EsFuenteDinamicaAgente(AudioSource fuente)
     {
         if (fuente == null) return false;
-        if (fuente.rolloffMode == AudioRolloffMode.Custom) return true;
+
+        string nombreObj = fuente.gameObject.name;
+        if (nombreObj.IndexOf("Audio_Radio_", StringComparison.OrdinalIgnoreCase) >= 0
+            || nombreObj.IndexOf("Audio_Musica_Persecucion", StringComparison.OrdinalIgnoreCase) >= 0
+            || nombreObj.IndexOf("AudioAgenteZ3", StringComparison.OrdinalIgnoreCase) >= 0)
+            return true;
+
         if (fuente.clip == null) return false;
 
         string nombreClip = fuente.clip.name;

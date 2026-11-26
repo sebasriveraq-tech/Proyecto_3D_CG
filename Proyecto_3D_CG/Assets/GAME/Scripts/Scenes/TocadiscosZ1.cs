@@ -32,6 +32,8 @@ public sealed class TocadiscosZ1 : MonoBehaviour
         if (!Application.isPlaying || cancion == null) return;
 
         jugador = FindFirstObjectByType<PlayerHealth>();
+        if (agente == null)
+            agente = FindFirstObjectByType<AgentController>();
         audioTocadiscos = GetComponent<AudioSource>();
         if (audioTocadiscos == null) audioTocadiscos = gameObject.AddComponent<AudioSource>();
         audioTocadiscos.clip = cancion;

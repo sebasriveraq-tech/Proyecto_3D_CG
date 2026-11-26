@@ -20,6 +20,9 @@ public sealed class AudioAgenteZ1 : MonoBehaviour
 
     private void Start()
     {
+        if (agente == null)
+            agente = FindFirstObjectByType<AgentController>();
+
         if (agente == null || radioAcercamiento == null || musicaPersecucion == null)
         {
             enabled = false;
@@ -27,12 +30,12 @@ public sealed class AudioAgenteZ1 : MonoBehaviour
         }
 
         jugador = FindFirstObjectByType<PlayerHealth>();
-        radio = CrearFuente(agente.gameObject, radioAcercamiento, 1f);
+        radio = CrearFuenteHija(agente.transform, "Audio_Radio_Acercamiento", radioAcercamiento, 1f);
         // La distancia al personaje controla el volumen. La fuente 3D aporta la dirección.
         radio.rolloffMode = AudioRolloffMode.Custom;
         radio.maxDistance = AlcanceRadio;
         radio.SetCustomCurve(AudioSourceCurveType.CustomRolloff, AnimationCurve.Constant(0f, 1f, 1f));
-        musica = CrearFuente(gameObject, musicaPersecucion, 0f);
+        musica = CrearFuenteHija(transform, "Audio_Musica_Persecucion", musicaPersecucion, 0f);
     }
 
     private void LateUpdate()
@@ -64,12 +67,17 @@ public sealed class AudioAgenteZ1 : MonoBehaviour
         }
 
         AgentState estado = agente.EstadoActual;
+        float volBaseMusica = Mathf.Max(0.55f, volumenMusica);
+        float factorTransicion = GameSettingsManager.Instance != null
+            ? GameSettingsManager.Instance.MultiplicadorTransicionMusica
+            : 1f;
+
         if (estado == AgentState.Persecucion || estado == AgentState.Ataque)
         {
             enPersecucion = true;
             nivelMusica = 1f;
             if (radio.isPlaying) radio.Stop();
-            musica.volume = volumenMusica * GameSettingsManager.FactorMusica;
+            musica.volume = volBaseMusica * GameSettingsManager.FactorMusica * factorTransicion;
             if (!musica.isPlaying) musica.Play();
             return;
         }
@@ -79,7 +87,7 @@ public sealed class AudioAgenteZ1 : MonoBehaviour
         {
             if (!enPersecucion)
                 nivelMusica = Mathf.MoveTowards(nivelMusica, 0f, Time.deltaTime / DuracionDesvanecimiento);
-            musica.volume = nivelMusica * volumenMusica * GameSettingsManager.FactorMusica;
+            musica.volume = nivelMusica * volBaseMusica * GameSettingsManager.FactorMusica * factorTransicion;
             if (nivelMusica > 0f) return;
             musica.Stop();
         }
@@ -108,9 +116,13 @@ public sealed class AudioAgenteZ1 : MonoBehaviour
         audioPausado = false;
     }
 
-    private static AudioSource CrearFuente(GameObject objeto, AudioClip clip, float mezclaEspacial)
+    private static AudioSource CrearFuenteHija(Transform padre, string nombreHijo, AudioClip clip, float mezclaEspacial)
     {
-        AudioSource fuente = objeto.AddComponent<AudioSource>();
+        GameObject contenedor = new GameObject(nombreHijo);
+        contenedor.transform.SetParent(padre, false);
+        contenedor.transform.localPosition = Vector3.zero;
+
+        AudioSource fuente = contenedor.AddComponent<AudioSource>();
         fuente.playOnAwake = false;
         fuente.clip = clip;
         fuente.loop = true;
