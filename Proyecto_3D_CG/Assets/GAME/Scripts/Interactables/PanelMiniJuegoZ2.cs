@@ -4,12 +4,6 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-/// <summary>
-/// Controla los minijuegos interactivos de la Escena 2 (Zona 2 - Laboratorio) sobre paneles reales
-/// en la Hierarchy con progreso conservado en memoria al salir y volver a entrar:
-/// 1) ReconexionCircuitos (Terminal de Energía): cuadrícula 3x3 de rotación de cables.
-/// 2) RecuperacionDatos (Terminal de Servidores): ingreso de secuencia de 4 símbolos según patrón visual.
-/// </summary>
 public class PanelMiniJuegoZ2 : MonoBehaviour
 {
     public enum TipoMiniJuego

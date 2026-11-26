@@ -1,7 +1,6 @@
 using System.Collections;
 using UnityEngine;
 
-/// Cajón/caja: al interactuar abre la tapa (levantándola o girándola) y revela su contenido.
 public class Cajon : Interactable
 {
     public enum TipoApertura { Levantar, Girar }

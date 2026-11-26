@@ -3,8 +3,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UI;
 
-/// Puerta: pide un item al GameManager. Si el jugador lo tiene, se abre y carga la siguiente zona.
-/// Incluye humo volumétrico 3D denso sin bordes cuadrados + overlay UI de niebla que oculta por completo el corte de escena.
 public class Puerta : Interactable
 {
     [Header("Condicion")]
@@ -492,10 +490,6 @@ public class Puerta : Interactable
         return materialHumoCache;
     }
 
-    /// <summary>
-    /// Overlay UI de niebla suave que acompaña al humo 3D al abrir la puerta,
-    /// cubriendo progresivamente el 100% de la vista justo en el instante del cambio de escena.
-    /// </summary>
     private class CortinaNieblaTransicion : MonoBehaviour
     {
         private CanvasGroup grupo;

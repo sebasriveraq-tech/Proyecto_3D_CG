@@ -3,8 +3,6 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-/// Panel de reparacion de la terminal de recepcion (Zona 1).
-/// Permite operar los modulos A, B y C tanto con teclado como haciendo clic con el mouse.
 public class PanelTerminalZ1 : MonoBehaviour
 {
     private static PanelTerminalZ1 panelActivoZ1;

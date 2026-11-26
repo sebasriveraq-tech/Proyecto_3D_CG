@@ -1,10 +1,6 @@
 using UnityEngine;
 
-/// <summary>
-/// Controlador ambiental de la Zona 1 (Recepción): sincroniza con GameManager el estado
-/// de emergencia de la recepción, pulsa las luces mientras la terminal está averiada
-/// y estabiliza la iluminación cuando el jugador repara la terminal y obtiene el código.
-/// </summary>
+
 public class AmbienteEmergenciaZ1 : MonoBehaviour
 {
     public Light[] luces;

@@ -4,11 +4,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-/// <summary>
-/// Administra la configuracion global de audio y controles del juego,
-/// aplicando los cambios en tiempo real sobre el sistema de sonido y camara,
-/// y guardando las preferencias de forma persistente entre escenas y sesiones.
-/// </summary>
 public class GameSettingsManager : MonoBehaviour
 {
     public static GameSettingsManager Instance { get; private set; }

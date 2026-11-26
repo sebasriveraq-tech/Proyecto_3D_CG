@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// Luz propia del dron de la Zona 1; no modifica el comportamiento del agente.
+// Luz propia del dron de la Zona 1
 public class LuzEstadoDronZ1 : MonoBehaviour
 {
     public AgentController agente;

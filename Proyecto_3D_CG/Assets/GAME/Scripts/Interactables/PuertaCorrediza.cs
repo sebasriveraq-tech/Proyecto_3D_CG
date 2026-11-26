@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using UnityEngine;
 
-/// Puerta corrediza: se abre solo si (opcionalmente) hay energía y el jugador tiene la credencial.
 public class PuertaCorrediza : Interactable
 {
     [Header("Requisitos")]
@@ -22,7 +21,6 @@ public class PuertaCorrediza : Interactable
     [Header("Audio")]
     public AudioClip sonidoDenegado;
 
-    /// Se dispara cuando la puerta concede el acceso (el Scene3Controller lo escucha).
     public Action AlAbrirse;
 
     private Vector3 posCerrada, posAbierta;

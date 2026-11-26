@@ -3,10 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 
-/// PlayerVisual: controla lo visual del jugador y la transición fluida entre 1ª y 3ª persona (tecla V).
-/// Coloca las mallas de la cabeza/rostro/modelo del jugador en la capa dedicada "PlayerHead" excluida del
-/// Culling Mask en 1ª persona y además cambia ShadowCastingMode a ShadowsOnly en 1ª persona (y On en 3ª persona),
-/// garantizando que nunca se vean ojos, boca ni dientes dentro de la cámara y siempre conserve la cabeza en 3ª persona.
+
 public class PlayerVisual : MonoBehaviour
 {
     private CharacterController controlador;
@@ -67,8 +64,8 @@ public class PlayerVisual : MonoBehaviour
             cullingMaskOriginal = cam.cullingMask;
         }
 
-        // 3) Buscar el hueso de la cabeza ("mixamorig:Head") y mover TODAS las mallas de PlayerMixamo
-        //    (cabeza, ojos, boca, máscara y traje facial) a la capa dedicada PlayerHead.
+        // 3) Buscar el hueso de la cabeza ("mixamorig:Head") y mover TODAS las mallas de PlayerMixamo (cabeza, ojos, boca, máscara y traje facial) a la capa dedicada PlayerHead.
+       
         todosLosRenderersModelo.Clear();
 
         if (modelo != null)
@@ -108,7 +105,7 @@ public class PlayerVisual : MonoBehaviour
         distanciaActualTercera = distanciaTercera;
         factorTransicionTercera = 0f;
 
-        // Arranca en 1ª persona: capa PlayerHead excluida del Culling Mask y renderers en ShadowsOnly.
+        // Arranca en 1ra persona: capa PlayerHead excluida del Culling Mask y renderers en ShadowsOnly.
         AplicarVisibilidadModelo(false);
     }
 
@@ -197,8 +194,8 @@ public class PlayerVisual : MonoBehaviour
         Vector3 posCamaraFinal = Vector3.Lerp(posPrimera, posTercera, tSuave);
         Quaternion rotCamaraFinal = Quaternion.Slerp(rotPrimera, rotTercera, tSuave);
 
-        // En 3ª persona todo el modelo (incluyendo cabeza, ojos y boca) se reactiva con ShadowCastingMode.On
-        // y capa PlayerHead incluida, evitando ocultamiento salvo si la cámara está dentro de la cabeza (< 0.34m).
+        // En 3era persona todo el modelo se reactiva con ShadowCastingMode.On y capa PlayerHead incluida, evitando ocultamiento salvo si la cámara está dentro de la cabeza (< 0.34m).
+        
         float distACabeza = Vector3.Distance(posCamaraFinal, posPrimera);
         bool mostrarModelo = terceraPersona && factorTransicionTercera >= 0.12f && distACabeza >= 0.34f;
         AplicarVisibilidadModelo(mostrarModelo);

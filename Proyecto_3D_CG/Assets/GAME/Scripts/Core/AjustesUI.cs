@@ -2,10 +2,6 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Controla el panel de Ajustes de audio y sensibilidad conectado desde el Inspector,
-/// sincronizándolo con GameSettingsManager y gestionando el retorno al Menú Principal o Pausa.
-/// </summary>
 public class AjustesUI : MonoBehaviour
 {
     public static AjustesUI Instance { get; private set; }

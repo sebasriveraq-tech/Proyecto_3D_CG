@@ -2,9 +2,6 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-/// DatosGuardado: es el "molde" del archivo JSON. Solo guarda tipos planos que Unity sabe convertir
-/// (string, int, float, List<string>, List<ParBool>). Las estructuras Stack, Queue y Dictionary
-/// no se serializan directamente: se guarda su contenido plano y se reconstruyen al cargar.
 [System.Serializable]
 public class DatosGuardado
 {
@@ -21,7 +18,6 @@ public class DatosGuardado
     public List<ParBool> objetivos = new List<ParBool>();
 }
 
-/// ParBool: una pareja clave/valor para poder guardar las Dictionary como lista plana.
 [System.Serializable]
 public class ParBool
 {
@@ -39,8 +35,6 @@ public class ResultadoPartida
     public List<string> inventario;
 }
 
-/// SaveManager: convierte el estado del GameManager a JSON en StreamingAssets y lo vuelve a leer,
-/// reconstruyendo List, Stack, Queue y Dictionary en el orden exacto.
 public static class SaveManager
 {
     private static string Ruta

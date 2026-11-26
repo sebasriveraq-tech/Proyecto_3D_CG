@@ -2,7 +2,6 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-/// Pantalla visual de la terminal de Zona 1. No modifica la reparación ni el guardado.
 public class PantallaTerminalZ1 : MonoBehaviour
 {
     private GameObject pantallaRaiz;

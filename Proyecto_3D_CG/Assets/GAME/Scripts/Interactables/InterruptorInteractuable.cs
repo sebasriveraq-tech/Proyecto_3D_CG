@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.Events;
 
-/// Interruptor / Terminal de Energía integrado visualmente con su computador y consola eléctrica 3D.
 public class InterruptorInteractuable : Interactable
 {
     [Header("Estado")]

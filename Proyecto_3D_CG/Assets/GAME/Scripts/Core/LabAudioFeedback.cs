@@ -1,10 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Efectos de audio livianos generados en runtime para que los prototipos
-/// tengan retroalimentacion incluso antes de importar bancos de sonido.
-/// </summary>
 public static class LabAudioFeedback
 {
     private static readonly Dictionary<int, AudioClip> tonos = new Dictionary<int, AudioClip>();

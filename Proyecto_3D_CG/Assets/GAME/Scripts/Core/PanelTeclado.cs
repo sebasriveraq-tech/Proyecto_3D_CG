@@ -5,9 +5,6 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// Panel de teclado numérico (vive dentro del Canvas prefab, desactivado por defecto).
-/// Crea las teclas 1-9 y 0 a partir de un botón plantilla, y se maneja con el mouse.
-/// Stack<char>: cada dígito se apila (Push) y el botón Borrar quita el último (Pop).
 public class PanelTeclado : MonoBehaviour
 {
     [Header("UI")]
@@ -68,7 +65,6 @@ public class PanelTeclado : MonoBehaviour
         if (botonCerrar != null) botonCerrar.onClick.AddListener(Cerrar);
     }
 
-    /// Abre el panel. 'validador' recibe el código completo y devuelve true si es correcto.
     public void Abrir(int longitudCodigo, Func<string, bool> validador, Action alCerrarPanel)
     {
         if (ArmarioEscondite.JugadorOculto) return;
