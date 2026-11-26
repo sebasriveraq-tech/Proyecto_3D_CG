@@ -36429,7 +36429,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1558938362}
   m_Layer: 0
-  m_Name: "Ambientacion_Redise\xF1o_Artistico_Zona2"
+  m_Name: Ambientacion_Laboratorio_Zona2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
