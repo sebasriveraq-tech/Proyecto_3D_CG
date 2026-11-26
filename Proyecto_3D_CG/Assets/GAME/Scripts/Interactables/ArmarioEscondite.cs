@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -16,7 +15,6 @@ public class ArmarioEscondite : Interactable
     public static bool JugadorOculto { get; private set; }
     public static ArmarioEscondite ArmarioActivo { get; private set; }
     public static bool FijarCamaraInterna { get; private set; }
-    private static readonly HashSet<ArmarioEscondite> armariosActivos = new HashSet<ArmarioEscondite>();
 
     [Header("Puerta y Referencias")]
     public Transform bisagra;             // pivote donde gira la puerta
@@ -55,15 +53,6 @@ public class ArmarioEscondite : Interactable
             ? puntoInterno.position + Vector3.up * 1.52f + transform.forward * 0.08f
             : transform.TransformPoint(new Vector3(0f, 1.57f, 0.02f));
 
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ReiniciarEstadoEstatico()
-    {
-        JugadorOculto = false;
-        ArmarioActivo = null;
-        FijarCamaraInterna = false;
-        armariosActivos.Clear();
-    }
-
     private void Awake()
     {
         if (JugadorOculto && ArmarioActivo == null)
@@ -73,38 +62,15 @@ public class ArmarioEscondite : Interactable
         }
     }
 
-    private void OnEnable()
-    {
-        armariosActivos.Add(this);
-    }
-
-    private bool EstaPosicionDentroDeEsteArmario(Vector3 posMundo)
-    {
-        Vector3 local = transform.InverseTransformPoint(posMundo);
-        return Mathf.Abs(local.x) < 0.72f
-            && local.z > -0.58f
-            && local.z < 0.58f
-            && local.y >= -0.25f
-            && local.y < 2.45f;
-    }
-
     public static bool EstaJugadorDentroDeArmario(Transform jugador)
     {
         if (JugadorOculto) return true;
-        if (jugador == null) return false;
-        foreach (ArmarioEscondite armario in armariosActivos)
-        {
-            if (armario != null && armario.EstaPosicionDentroDeEsteArmario(jugador.position))
-                return true;
-        }
-        return false;
+        if (jugador == null || ArmarioActivo == null) return false;
+        return Vector3.Distance(jugador.position, ArmarioActivo.transform.position) < 1.0f;
     }
 
     private void Start()
     {
-        if (bisagra == null)
-            bisagra = transform.Find("Bisagra");
-
         if (bisagra != null)
         {
             duracion = Mathf.Max(0.15f, duracion);
@@ -115,77 +81,11 @@ public class ArmarioEscondite : Interactable
 
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
-        if (audioSource == null)
-            audioSource = gameObject.AddComponent<AudioSource>();
-        audioSource.playOnAwake = false;
-        audioSource.loop = false;
-        audioSource.spatialBlend = 1f;
-        audioSource.minDistance = 1.8f;
-        audioSource.maxDistance = 16f;
-        audioSource.dopplerLevel = 0f;
-
-        if (puntoInterno == null)
-        {
-            Transform existente = transform.Find("Punto_Referencia_Interno");
-            if (existente != null)
-            {
-                puntoInterno = existente;
-            }
-            else
-            {
-                GameObject goInt = new GameObject("Punto_Referencia_Interno");
-                goInt.transform.SetParent(transform, false);
-                goInt.transform.localPosition = new Vector3(0f, 0.05f, -0.05f);
-                goInt.transform.localRotation = Quaternion.identity;
-                puntoInterno = goInt.transform;
-            }
-        }
-
-        if (puntoExterno == null)
-        {
-            Transform existenteExt = transform.Find("Punto_Referencia_Externo");
-            if (existenteExt != null)
-            {
-                puntoExterno = existenteExt;
-            }
-            else
-            {
-                GameObject goExt = new GameObject("Punto_Referencia_Externo");
-                goExt.transform.SetParent(transform, false);
-                goExt.transform.localPosition = new Vector3(0f, 0.05f, 1.45f);
-                goExt.transform.localRotation = Quaternion.identity;
-                puntoExterno = goExt.transform;
-            }
-        }
-
-        // Limpiar colliders residuales internos (PanelInterior / LuzInterior) que no deben bloquear ni ensuciar Gizmos
-        Transform panelInt = transform.Find("PanelInterior");
-        if (panelInt != null)
-        {
-            foreach (Collider c in panelInt.GetComponentsInChildren<Collider>(true))
-                c.enabled = false;
-        }
-        Transform luzInt = transform.Find("LuzInterior");
-        if (luzInt != null)
-        {
-            foreach (Collider c in luzInt.GetComponentsInChildren<Collider>(true))
-                c.enabled = false;
-        }
-
-        // Trigger dedicado únicamente frente a la puerta del armario (+Z local) para delimitar acceso frontal
-        if (transform.Find("Zona_Acceso_Frontal") == null)
-        {
-            GameObject zonaFrente = new GameObject("Zona_Acceso_Frontal");
-            zonaFrente.transform.SetParent(transform, false);
-            BoxCollider trig = zonaFrente.AddComponent<BoxCollider>();
-            trig.isTrigger = true;
-            trig.center = new Vector3(0f, 1.15f, 1.05f);
-            trig.size = new Vector3(1.35f, 2.25f, 1.35f);
-        }
 
         mensajePrompt = "Presiona E para esconderte en el armario";
     }
 
+    // Valida con producto punto (Vector3.Dot) que el jugador esté frente a la puerta y mirando al armario
     public override bool PuedeInteractuar(Transform origenJugador)
     {
         if (estado == EstadoArmario.Oculto)
@@ -219,17 +119,6 @@ public class ArmarioEscondite : Interactable
         return true;
     }
 
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.matrix = transform.localToWorldMatrix;
-        // Zona frontal válida (verde) frente a la puerta (+Z)
-        Gizmos.color = new Color(0.15f, 0.95f, 0.45f, 0.35f);
-        Gizmos.DrawWireCube(new Vector3(0f, 1.15f, 1.15f), new Vector3(1.35f, 2.25f, 1.35f));
-        // Zona trasera bloqueada (rojo) detrás del fondo (-Z)
-        Gizmos.color = new Color(0.95f, 0.20f, 0.20f, 0.45f);
-        Gizmos.DrawWireCube(new Vector3(0f, 1.15f, -0.80f), new Vector3(1.40f, 2.25f, 0.50f));
-    }
-
     private void Update()
     {
         if (bisagra != null)
@@ -242,7 +131,6 @@ public class ArmarioEscondite : Interactable
         if (Time.timeScale == 0f || PanelTerminalZ1.Abierto || PanelTeclado.Abierto)
             return;
 
-        // Si el jugador pulsa E rápido mientras termina la entrada, encolar la salida automática
         if (estado == EstadoArmario.Entrando)
         {
             if (Keyboard.current != null &&
@@ -257,11 +145,10 @@ public class ArmarioEscondite : Interactable
 
         if (estado == EstadoArmario.Oculto)
         {
-            if (!JugadorOculto) JugadorOculto = true;
-            if (ArmarioActivo != this) ArmarioActivo = this;
+            JugadorOculto = true;
+            ArmarioActivo = this;
 
-            // Mantener al jugador fijo en el punto interno con rotación horizontal limitada para no atravesar paredes
-            if (jugadorActual != null && Mouse.current != null)
+            if (jugadorActual != null && puntoInterno != null && Mouse.current != null)
             {
                 Vector2 delta = Mouse.current.delta.ReadValue();
                 offsetYawMirada = Mathf.Clamp(offsetYawMirada + delta.x * jugadorActual.sensibilidadMouse, -32f, 32f);
@@ -278,30 +165,6 @@ public class ArmarioEscondite : Interactable
             {
                 frameUltimaInteraccion = Time.frameCount;
                 IniciarSalida();
-            }
-            return;
-        }
-
-        // Failsafe anti-atrapamiento: si por cualquier colisión el jugador quedó dentro del armario en estado libre,
-        // ofrecer y permitir la salida inmediata al presionar E.
-        if (estado == EstadoArmario.CerradoLibre && !JugadorOculto && ArmarioActivo == null)
-        {
-            PlayerController jugador = ObtenerJugadorActual();
-            if (jugador != null && EstaPosicionDentroDeEsteArmario(jugador.transform.position))
-            {
-                if (UIManager.Instance != null)
-                    UIManager.Instance.MostrarPrompt("Presiona E para salir del armario");
-
-                if (Keyboard.current != null &&
-                    Keyboard.current.eKey.wasPressedThisFrame &&
-                    Time.frameCount != frameUltimaInteraccion)
-                {
-                    frameUltimaInteraccion = Time.frameCount;
-                    jugadorActual = jugador;
-                    characterControllerJugador = jugador.GetComponent<CharacterController>();
-                    yawBaseArmario = transform.eulerAngles.y;
-                    IniciarSalida();
-                }
             }
         }
     }
@@ -331,37 +194,14 @@ public class ArmarioEscondite : Interactable
         if (JugadorOculto || Time.unscaledTime < tiempoBloqueoReentrada)
             return;
 
-        PlayerController jugador = ObtenerJugadorActual();
-        if (jugador == null)
-        {
-            progresoObjetivo = progresoObjetivo > 0.5f ? 0f : 1f;
-            ReproducirSonidoPuerta(progresoObjetivo > 0.5f);
-            return;
-        }
+        if (jugadorActual == null || !jugadorActual.gameObject.activeInHierarchy)
+            jugadorActual = FindFirstObjectByType<PlayerController>();
 
-        if (EstaPosicionDentroDeEsteArmario(jugador.transform.position))
-        {
-            jugadorActual = jugador;
-            characterControllerJugador = jugador.GetComponent<CharacterController>();
-            yawBaseArmario = transform.eulerAngles.y;
-            IniciarSalida();
-            return;
-        }
-
-        if (!PuedeInteractuar(jugador.transform))
+        if (jugadorActual == null || !PuedeInteractuar(jugadorActual.transform))
             return;
 
         if (rutinaActiva == null)
-            rutinaActiva = StartCoroutine(RutinaEntrarEscondite(jugador));
-    }
-
-    private PlayerController ObtenerJugadorActual()
-    {
-        if (jugadorActual != null && jugadorActual.gameObject.activeInHierarchy)
-            return jugadorActual;
-
-        jugadorActual = FindFirstObjectByType<PlayerController>();
-        return jugadorActual;
+            rutinaActiva = StartCoroutine(RutinaEntrarEscondite(jugadorActual));
     }
 
     private void IniciarSalida()
@@ -419,7 +259,6 @@ public class ArmarioEscondite : Interactable
         yawBaseArmario = transform.eulerAngles.y;
         offsetYawMirada = 0f;
 
-        // 1. Abrir la puerta del armario con su sonido metálico
         ReproducirSonidoPuerta(true);
         progresoObjetivo = 1f;
         float limiteEspera = DuracionPuertaEfectiva + 0.25f;
@@ -430,10 +269,9 @@ public class ArmarioEscondite : Interactable
             yield return null;
         }
 
-        // 2. Desplazar suavemente al jugador al punto de referencia interno mirando hacia las rendijas
         Vector3 posInicio = jugador.transform.position;
         Quaternion rotInicio = jugador.transform.rotation;
-        Vector3 posDestino = puntoInterno.position;
+        Vector3 posDestino = puntoInterno != null ? puntoInterno.position : transform.position;
         Quaternion rotDestino = Quaternion.Euler(0f, yawBaseArmario, 0f);
 
         float t = 0f;
@@ -451,7 +289,6 @@ public class ArmarioEscondite : Interactable
         jugador.transform.rotation = rotDestino;
         FijarCamaraInterna = true;
 
-        // 3. Cerrar la puerta para cortar la línea de visión del guardia
         ReproducirSonidoPuerta(false);
         progresoObjetivo = 0f;
         float esperaCierre = 0f;
@@ -489,7 +326,6 @@ public class ArmarioEscondite : Interactable
         if (UIManager.Instance != null)
             UIManager.Instance.OcultarPrompt();
 
-        // 1. Abrir la puerta del armario antes de mover al jugador
         ReproducirSonidoPuerta(true);
         progresoObjetivo = 1f;
         float limiteEspera = DuracionPuertaEfectiva + 0.25f;
@@ -500,18 +336,13 @@ public class ArmarioEscondite : Interactable
             yield return null;
         }
 
-        // 2. El jugador sale mientras la puerta permanece abierta
         FijarCamaraInterna = false;
         if (jugadorActual != null)
         {
             Vector3 posInicio = jugadorActual.transform.position;
-            Vector3 posSalida = puntoExterno.position;
-            if (puntoExterno.parent == transform && puntoExterno.localPosition.z < 1.45f)
-            {
-                Vector3 locExt = puntoExterno.localPosition;
-                locExt.z = 1.45f;
-                posSalida = transform.TransformPoint(locExt);
-            }
+            Vector3 posSalida = puntoExterno != null
+                ? puntoExterno.position
+                : transform.TransformPoint(new Vector3(0f, 0.05f, 1.45f));
             Quaternion rotInicio = jugadorActual.transform.rotation;
             Quaternion rotSalida = Quaternion.Euler(0f, yawBaseArmario, 0f);
 
@@ -530,7 +361,6 @@ public class ArmarioEscondite : Interactable
             jugadorActual.transform.rotation = rotSalida;
         }
 
-        // 3. Liberar al jugador afuera ignorando la puerta mientras cierra para evitar empujones de vuelta
         if (characterControllerJugador != null)
         {
             characterControllerJugador.enabled = true;
@@ -561,7 +391,6 @@ public class ArmarioEscondite : Interactable
 
     private void OnDisable()
     {
-        armariosActivos.Remove(this);
         if (rutinaActiva != null)
         {
             StopCoroutine(rutinaActiva);
@@ -575,15 +404,9 @@ public class ArmarioEscondite : Interactable
         }
 
         solicitudSalidaPendiente = false;
-        if (estado == EstadoArmario.Oculto || estado == EstadoArmario.Entrando || estado == EstadoArmario.Saliendo)
+        if (ArmarioActivo == this)
         {
             JugadorOculto = false;
-            FijarCamaraInterna = false;
-            if (ArmarioActivo == this)
-                ArmarioActivo = null;
-        }
-        else if (ArmarioActivo == this)
-        {
             FijarCamaraInterna = false;
             ArmarioActivo = null;
         }

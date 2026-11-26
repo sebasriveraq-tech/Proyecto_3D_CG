@@ -34,7 +34,6 @@ public class PanelTeclado : MonoBehaviour
     private bool construido;
     private bool bloqueado;
 
-    // Mismo patrón que PanelMiniJuegoZ2: el UIManager cierra el panel activo ante eventos externos
     private static PanelTeclado activo;
     public static bool Abierto => activo != null;
 

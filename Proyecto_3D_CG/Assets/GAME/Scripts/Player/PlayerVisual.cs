@@ -38,7 +38,7 @@ public class PlayerVisual : MonoBehaviour
         controladorJugador = GetComponent<PlayerController>();
         animator = modelo != null ? modelo.GetComponentInChildren<Animator>(true) : null;
 
-        // Ajustar CharacterController para paso fluido por puertas y pasillos sin atascos
+        // Ajustar radio y altura de paso del CharacterController
         if (this.controlador != null)
         {
             this.controlador.radius = 0.32f;
@@ -46,11 +46,10 @@ public class PlayerVisual : MonoBehaviour
             this.controlador.stepOffset = 0.30f;
         }
 
-        // 1) Ocultar la cápsula primitiva raíz del Player: el cuerpo real es el modelo Mixamo.
+        // Ocultar la cápsula base del Player para mostrar solo el modelo 3D
         foreach (MeshRenderer r in GetComponents<MeshRenderer>())
             r.enabled = false;
 
-        // 2) Buscar la cámara y ajustar Near Clip Plane para evitar atravesar muros.
         Camera cam = GetComponentInChildren<Camera>(true);
         if (cam == null && Camera.main != null) cam = Camera.main;
         camaraComponente = cam;
@@ -64,8 +63,7 @@ public class PlayerVisual : MonoBehaviour
             cullingMaskOriginal = cam.cullingMask;
         }
 
-        // 3) Buscar el hueso de la cabeza ("mixamorig:Head") y mover TODAS las mallas de PlayerMixamo (cabeza, ojos, boca, máscara y traje facial) a la capa dedicada PlayerHead.
-       
+        // Asignar la capa del modelo para alternar entre primera y tercera persona
         todosLosRenderersModelo.Clear();
 
         if (modelo != null)
@@ -105,7 +103,6 @@ public class PlayerVisual : MonoBehaviour
         distanciaActualTercera = distanciaTercera;
         factorTransicionTercera = 0f;
 
-        // Arranca en 1ra persona: capa PlayerHead excluida del Culling Mask y renderers en ShadowsOnly.
         AplicarVisibilidadModelo(false);
     }
 
@@ -114,7 +111,6 @@ public class PlayerVisual : MonoBehaviour
         if (modelo != null && !modelo.activeSelf)
             modelo.SetActive(true);
 
-        // Mantener siempre la escala original del hueso de la cabeza para no deformar ni perder la cabeza en 3ª persona
         if (cabeza != null)
             cabeza.localScale = escalaOriginalCabeza;
 
@@ -152,7 +148,7 @@ public class PlayerVisual : MonoBehaviour
         if (camaraComponente != null && camaraComponente.nearClipPlane > 0.06f)
             camaraComponente.nearClipPlane = 0.05f;
 
-        // Si el jugador está escondido en un armario, fijar cámara en el punto interno seguro sin ojos/boca visibles
+        // Cámara dentro del armario cuando el jugador está oculto
         if (ArmarioEscondite.JugadorOculto && ArmarioEscondite.ArmarioActivo != null)
         {
             AplicarVisibilidadModelo(false);
@@ -194,8 +190,6 @@ public class PlayerVisual : MonoBehaviour
         Vector3 posCamaraFinal = Vector3.Lerp(posPrimera, posTercera, tSuave);
         Quaternion rotCamaraFinal = Quaternion.Slerp(rotPrimera, rotTercera, tSuave);
 
-        // En 3era persona todo el modelo se reactiva con ShadowCastingMode.On y capa PlayerHead incluida, evitando ocultamiento salvo si la cámara está dentro de la cabeza (< 0.34m).
-        
         float distACabeza = Vector3.Distance(posCamaraFinal, posPrimera);
         bool mostrarModelo = terceraPersona && factorTransicionTercera >= 0.12f && distACabeza >= 0.34f;
         AplicarVisibilidadModelo(mostrarModelo);

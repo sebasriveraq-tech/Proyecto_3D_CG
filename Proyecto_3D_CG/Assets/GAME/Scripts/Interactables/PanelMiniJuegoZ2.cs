@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -79,13 +80,13 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
     private bool estadoInicializado;
     private bool reabiertoConProgreso;
 
-    // Constantes de puertos cardinales para la cuadrícula de circuitos
-    private const int PUERTO_N = 1;
-    private const int PUERTO_E = 2;
-    private const int PUERTO_S = 4;
-    private const int PUERTO_O = 8;
+    // Direcciones de conexión de cada celda: 0 = Norte, 1 = Este, 2 = Sur, 3 = Oeste
+    private const int DIR_NORTE = 0;
+    private const int DIR_ESTE = 1;
+    private const int DIR_SUR = 2;
+    private const int DIR_OESTE = 3;
 
-    private readonly int[,] mascaraBase = new int[3, 3];
+    private readonly bool[,,] puertosBase = new bool[3, 3, 4];
     private readonly int[,] rotacionInicial = new int[3, 3];
     private readonly int[,] rotacionCelda = new int[3, 3];
     private readonly bool[,] celdaEnergizada = new bool[3, 3];
@@ -364,22 +365,20 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
         }
     }
 
-    // =========================================================================
-    // MINIJUEGO 1: CUADRÍCULA 3x3 DE ROTACIÓN DE CABLES (CIRCUITOS)
-    // =========================================================================
+    // Minijuego 1: cuadrícula 3x3 de rotación de cables
     private void InicializarCuadriculaCircuitos()
     {
-        mascaraBase[0, 0] = PUERTO_E | PUERTO_O | PUERTO_S;
-        mascaraBase[0, 1] = PUERTO_O | PUERTO_S | PUERTO_E;
-        mascaraBase[0, 2] = PUERTO_O | PUERTO_S;
+        ConfigurarPiezaBase(0, 0, false, true, true, true);
+        ConfigurarPiezaBase(0, 1, false, true, true, true);
+        ConfigurarPiezaBase(0, 2, false, false, true, true);
 
-        mascaraBase[1, 0] = PUERTO_N | PUERTO_S;
-        mascaraBase[1, 1] = PUERTO_N | PUERTO_S;
-        mascaraBase[1, 2] = PUERTO_N | PUERTO_S;
+        ConfigurarPiezaBase(1, 0, true, false, true, false);
+        ConfigurarPiezaBase(1, 1, true, false, true, false);
+        ConfigurarPiezaBase(1, 2, true, false, true, false);
 
-        mascaraBase[2, 0] = PUERTO_N | PUERTO_E;
-        mascaraBase[2, 1] = PUERTO_N | PUERTO_E | PUERTO_O;
-        mascaraBase[2, 2] = PUERTO_O | PUERTO_N | PUERTO_E;
+        ConfigurarPiezaBase(2, 0, true, true, false, false);
+        ConfigurarPiezaBase(2, 1, true, true, false, true);
+        ConfigurarPiezaBase(2, 2, true, true, false, true);
 
         int[,] inicio =
         {
@@ -400,20 +399,19 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
         PropagarCorrienteBFS();
     }
 
-    private int ObtenerMascaraActual(int fila, int col)
+    private void ConfigurarPiezaBase(int fila, int col, bool norte, bool este, bool sur, bool oeste)
     {
-        int m = mascaraBase[fila, col];
-        int pasos = ((rotacionCelda[fila, col] % 4) + 4) % 4;
-        for (int i = 0; i < pasos; i++)
-        {
-            int rotada = 0;
-            if ((m & PUERTO_N) != 0) rotada |= PUERTO_E;
-            if ((m & PUERTO_E) != 0) rotada |= PUERTO_S;
-            if ((m & PUERTO_S) != 0) rotada |= PUERTO_O;
-            if ((m & PUERTO_O) != 0) rotada |= PUERTO_N;
-            m = rotada;
-        }
-        return m;
+        puertosBase[fila, col, DIR_NORTE] = norte;
+        puertosBase[fila, col, DIR_ESTE] = este;
+        puertosBase[fila, col, DIR_SUR] = sur;
+        puertosBase[fila, col, DIR_OESTE] = oeste;
+    }
+
+    private bool TieneBrazoEnDireccion(int fila, int col, int direccion)
+    {
+        int giros = ((rotacionCelda[fila, col] % 4) + 4) % 4;
+        int dirOriginal = (direccion - giros + 4) % 4;
+        return puertosBase[fila, col, dirOriginal];
     }
 
     private void RotarCeldaCable(int fila, int col)
@@ -435,6 +433,7 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
         RefrescarVista();
     }
 
+    // Recorre las celdas conectadas usando Queue<Vector2Int> con búsqueda en anchura (BFS)
     private bool PropagarCorrienteBFS()
     {
         for (int r = 0; r < 3; r++)
@@ -449,66 +448,53 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
             return true;
         }
 
-        if ((ObtenerMascaraActual(0, 0) & PUERTO_O) == 0)
+        if (!TieneBrazoEnDireccion(0, 0, DIR_OESTE))
             return false;
 
-        int[] colaF = new int[9];
-        int[] colaC = new int[9];
-        int ini = 0, fin = 0;
-
+        Queue<Vector2Int> cola = new Queue<Vector2Int>();
         celdaEnergizada[0, 0] = true;
-        colaF[fin] = 0;
-        colaC[fin] = 0;
-        fin++;
+        cola.Enqueue(new Vector2Int(0, 0));
 
-        while (ini < fin)
+        while (cola.Count > 0)
         {
-            int f = colaF[ini];
-            int c = colaC[ini];
-            ini++;
+            Vector2Int actual = cola.Dequeue();
+            int f = actual.x;
+            int c = actual.y;
 
-            int mActual = ObtenerMascaraActual(f, c);
-
-            if (f > 0 && (mActual & PUERTO_N) != 0 && !celdaEnergizada[f - 1, c] &&
-                (ObtenerMascaraActual(f - 1, c) & PUERTO_S) != 0)
+            if (f > 0 && !celdaEnergizada[f - 1, c] &&
+                TieneBrazoEnDireccion(f, c, DIR_NORTE) &&
+                TieneBrazoEnDireccion(f - 1, c, DIR_SUR))
             {
                 celdaEnergizada[f - 1, c] = true;
-                colaF[fin] = f - 1;
-                colaC[fin] = c;
-                fin++;
+                cola.Enqueue(new Vector2Int(f - 1, c));
             }
-            if (f < 2 && (mActual & PUERTO_S) != 0 && !celdaEnergizada[f + 1, c] &&
-                (ObtenerMascaraActual(f + 1, c) & PUERTO_N) != 0)
+            if (f < 2 && !celdaEnergizada[f + 1, c] &&
+                TieneBrazoEnDireccion(f, c, DIR_SUR) &&
+                TieneBrazoEnDireccion(f + 1, c, DIR_NORTE))
             {
                 celdaEnergizada[f + 1, c] = true;
-                colaF[fin] = f + 1;
-                colaC[fin] = c;
-                fin++;
+                cola.Enqueue(new Vector2Int(f + 1, c));
             }
-            if (c > 0 && (mActual & PUERTO_O) != 0 && !celdaEnergizada[f, c - 1] &&
-                (ObtenerMascaraActual(f, c - 1) & PUERTO_E) != 0)
+            if (c > 0 && !celdaEnergizada[f, c - 1] &&
+                TieneBrazoEnDireccion(f, c, DIR_OESTE) &&
+                TieneBrazoEnDireccion(f, c - 1, DIR_ESTE))
             {
                 celdaEnergizada[f, c - 1] = true;
-                colaF[fin] = f;
-                colaC[fin] = c - 1;
-                fin++;
+                cola.Enqueue(new Vector2Int(f, c - 1));
             }
-            if (c < 2 && (mActual & PUERTO_E) != 0 && !celdaEnergizada[f, c + 1] &&
-                (ObtenerMascaraActual(f, c + 1) & PUERTO_O) != 0)
+            if (c < 2 && !celdaEnergizada[f, c + 1] &&
+                TieneBrazoEnDireccion(f, c, DIR_ESTE) &&
+                TieneBrazoEnDireccion(f, c + 1, DIR_OESTE))
             {
                 celdaEnergizada[f, c + 1] = true;
-                colaF[fin] = f;
-                colaC[fin] = c + 1;
-                fin++;
+                cola.Enqueue(new Vector2Int(f, c + 1));
             }
         }
 
-        return celdaEnergizada[2, 2] && (ObtenerMascaraActual(2, 2) & PUERTO_E) != 0;
+        return celdaEnergizada[2, 2] && TieneBrazoEnDireccion(2, 2, DIR_ESTE);
     }
 
-    // =========================================================================
-    // MINIJUEGO 2: SECUENCIA DE 4 SÍMBOLOS SEGÚN PATRÓN (PROGRESO GUARDADO)
-    // =========================================================================
+    // Minijuego 2: secuencia de 4 símbolos
     private void ProcesarEntradaSimbolo(int idxSimbolo, int idxBoton)
     {
         if (completado || pasoSimbolosActual < 0 || pasoSimbolosActual >= 4) return;
@@ -544,9 +530,7 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
         RefrescarVista();
     }
 
-    // =========================================================================
-    // ACTUALIZACIÓN VISUAL DE LOS COMPONENTES DEL INSPECTOR
-    // =========================================================================
+    // Actualización visual de los elementos del panel
     private void RefrescarVista()
     {
         if (!PanelObjetivo.activeSelf) return;
@@ -574,7 +558,6 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
                     for (int c = 0; c < 3; c++)
                     {
                         VistaCeldaCable v = vistasCeldas[r * 3 + c];
-                        int m = ObtenerMascaraActual(r, c);
                         bool activa = celdaEnergizada[r, c];
 
                         Color cCable = activa ? colorEnergizado : colorSinCorriente;
@@ -585,10 +568,10 @@ public class PanelMiniJuegoZ2 : MonoBehaviour
                                 : new Color(0.09f, 0.13f, 0.18f, 1f);
                         }
 
-                        if (v.brazoNorte != null) { v.brazoNorte.gameObject.SetActive((m & PUERTO_N) != 0); v.brazoNorte.color = cCable; }
-                        if (v.brazoEste != null) { v.brazoEste.gameObject.SetActive((m & PUERTO_E) != 0); v.brazoEste.color = cCable; }
-                        if (v.brazoSur != null) { v.brazoSur.gameObject.SetActive((m & PUERTO_S) != 0); v.brazoSur.color = cCable; }
-                        if (v.brazoOeste != null) { v.brazoOeste.gameObject.SetActive((m & PUERTO_O) != 0); v.brazoOeste.color = cCable; }
+                        if (v.brazoNorte != null) { v.brazoNorte.gameObject.SetActive(TieneBrazoEnDireccion(r, c, DIR_NORTE)); v.brazoNorte.color = cCable; }
+                        if (v.brazoEste != null) { v.brazoEste.gameObject.SetActive(TieneBrazoEnDireccion(r, c, DIR_ESTE)); v.brazoEste.color = cCable; }
+                        if (v.brazoSur != null) { v.brazoSur.gameObject.SetActive(TieneBrazoEnDireccion(r, c, DIR_SUR)); v.brazoSur.color = cCable; }
+                        if (v.brazoOeste != null) { v.brazoOeste.gameObject.SetActive(TieneBrazoEnDireccion(r, c, DIR_OESTE)); v.brazoOeste.color = cCable; }
                         if (v.centro != null) v.centro.color = activa ? Color.white : new Color(0.55f, 0.65f, 0.74f, 1f);
                         if (v.etiquetaGrados != null) v.etiquetaGrados.text = ((rotacionCelda[r, c] % 4) * 90) + "°";
                     }

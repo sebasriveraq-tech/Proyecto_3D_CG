@@ -7,6 +7,31 @@ public class InteractableRelay : Interactable
 
     private Transform ultimoOrigen;
 
+    private void Start()
+    {
+        if (destino == null)
+            destino = FindFirstObjectByType<CajonInteractuable>();
+        if (destinoSecundario == null && destino is CajonInteractuable cajon)
+        {
+            Recogible recogible = cajon.GetComponentInChildren<Recogible>(true);
+            if (recogible == null)
+            {
+                float mejorDist = 1.2f;
+                foreach (Recogible r in FindObjectsByType<Recogible>(FindObjectsSortMode.None))
+                {
+                    if (r == null) continue;
+                    float d = Vector3.Distance(cajon.transform.position, r.transform.position);
+                    if (d < mejorDist)
+                    {
+                        mejorDist = d;
+                        recogible = r;
+                    }
+                }
+            }
+            destinoSecundario = recogible;
+        }
+    }
+
     private Interactable ResolverObjetivo(Transform origenJugador)
     {
         if (destinoSecundario != null && destinoSecundario.gameObject.activeInHierarchy)

@@ -1,15 +1,9 @@
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.AI;
 using UnityEngine.UI;
 
-
 /// Controla la mecánica local del laboratorio (Zona 2): energía, alarma, condiciones de salida,
-/// mamparas de vidrio de Contención, luces parpadeantes en techo (Energía, Servidores y pasillo central),
-/// chispas de cortocircuito y sonido ambiental de emergencia, panel visual de objetivos,
-/// prevención de culling/muros invisibles y ajuste estricto de colliders.
-
+/// iluminación de emergencia, chispas y panel de objetivos del HUD.
 public class LaboratorioController : MonoBehaviour
 {
     [Header("Referencias de Zona 2")]
@@ -21,22 +15,10 @@ public class LaboratorioController : MonoBehaviour
     public Light luzEmergencia;
     public ParticleSystem chispasEnergia;
     public AudioSource audioAmbiente;
-    public AudioSource audioAlarmaEmergencia;
 
-    public bool EnergiaRestaurada { get; private set; }
-
-    private struct LuzTechoParpadeante
-    {
-        public Light luz;
-        public Renderer tuboVisual;
-        public Material materialTubo;
-        public float semilla;
-        public Vector3 posicionChispa;
-    }
-
-    private readonly List<LuzTechoParpadeante> lucesTechoParpadeantes = new List<LuzTechoParpadeante>();
-    private float temporizadorChispaElectrica = 2.5f;
-    private bool alarmaPausadaPorTiempo;
+    [Header("Luces de Techo (Zona 2)")]
+    public Light[] lucesTecho;
+    public Renderer[] tubosTecho;
 
     [Header("UI de Objetivos (Zona 2)")]
     public GameObject panelObjetivosHUD;
@@ -46,71 +28,20 @@ public class LaboratorioController : MonoBehaviour
     public Image barraAcentoObjetivoHUD;
     public Outline bordeObjetivoHUD;
 
+    public bool EnergiaRestaurada { get; private set; }
+
+    private readonly float[] semillasLuces = { 3.17f, 11.41f, 27.83f };
+    private float temporizadorChispaElectrica = 2.5f;
+    private bool ambientePausado;
     private bool credencialDetectadaPrev;
     private bool sonidoTareasCompletadasReproducido;
 
     private void Awake()
     {
-        GarantizarAudioListenerUnico();
-        CorregirVisibilidadYEvitarDesaparicionDeObjetos();
-        EnlazarLucesParpadeantesTecho();
-        GarantizarCollidersMobiliarioZona2();
-
-        if (interruptorEnergia == null)
-            interruptorEnergia = FindFirstObjectByType<InterruptorInteractuable>();
-        if (botonAlarma == null)
-            botonAlarma = FindFirstObjectByType<BotonInteractuable>();
-        if (terminal == null)
-            terminal = FindFirstObjectByType<Terminal>();
-        if (puertaSalida == null)
-            puertaSalida = FindFirstObjectByType<Puerta>();
-        if (agente == null)
-            agente = FindFirstObjectByType<AgentController>();
-        if (luzEmergencia == null)
+        if (audioAmbiente != null)
         {
-            GameObject luz = GameObject.Find("Luz_Emergencia_Zona2");
-            if (luz != null) luzEmergencia = luz.GetComponent<Light>();
-        }
-        if (chispasEnergia == null)
-        {
-            GameObject efecto = GameObject.Find("Chispas_Energia_Zona2");
-            if (efecto != null) chispasEnergia = efecto.GetComponent<ParticleSystem>();
-        }
-
-        ConfigurarAudioAmbienteYAlarmaEmergencia();
-    }
-
-    private void ConfigurarAudioAmbienteYAlarmaEmergencia()
-    {
-        GameSettingsManager cfg = GameSettingsManager.GarantizarInstancia();
-
-        if (audioAmbiente == null) audioAmbiente = GetComponent<AudioSource>();
-        if (audioAmbiente == null) audioAmbiente = gameObject.AddComponent<AudioSource>();
-
-        if (audioAmbiente.clip == null)
-            audioAmbiente.clip = LabAudioFeedback.ObtenerAmbiente();
-        audioAmbiente.loop = true;
-        audioAmbiente.playOnAwake = false;
-        audioAmbiente.spatialBlend = 0f;
-        audioAmbiente.mute = false;
-        float volBaseAmbiente = audioAmbiente.volume > 0.01f ? audioAmbiente.volume : 0.32f;
-        audioAmbiente.volume = volBaseAmbiente;
-        cfg.RegistrarFuenteConVolumenBase(audioAmbiente, volBaseAmbiente);
-
-        if (audioAlarmaEmergencia == null)
-        {
-            Transform hijoAlarma = transform.Find("Audio_Alarma_Emergencia_Z2");
-            if (hijoAlarma != null)
-                audioAlarmaEmergencia = hijoAlarma.GetComponent<AudioSource>();
-        }
-
-        if (audioAlarmaEmergencia != null)
-        {
-            audioAlarmaEmergencia.Stop();
-            audioAlarmaEmergencia.loop = false;
-            audioAlarmaEmergencia.playOnAwake = false;
-            audioAlarmaEmergencia.volume = 0f;
-            audioAlarmaEmergencia.enabled = false;
+            float volBase = audioAmbiente.volume > 0.01f ? audioAmbiente.volume : 0.32f;
+            GameSettingsManager.GarantizarInstancia().RegistrarFuenteConVolumenBase(audioAmbiente, volBase);
         }
     }
 
@@ -161,7 +92,7 @@ public class LaboratorioController : MonoBehaviour
     private void Update()
     {
         ActualizarParpadeoTechoYChispas();
-        ActualizarEstadoAlarmaPorTiempo();
+        ActualizarPausaAudio();
         SincronizarVisibilidadObjetivosHUD();
 
         bool tieneCredencial = GameManager.Instance != null && GameManager.Instance.TieneItem("credencial_z2");
@@ -172,348 +103,60 @@ public class LaboratorioController : MonoBehaviour
         }
     }
 
-    private void SincronizarVisibilidadObjetivosHUD()
+    public void RestaurarEnergia()
     {
-        if (panelObjetivosHUD == null) return;
-        bool mostrar = UIManager.Instance != null
-            && UIManager.Instance.panelHUD != null
-            && UIManager.Instance.panelHUD.activeInHierarchy
-            && !PanelTerminalZ1.AbiertoZ2;
-        if (panelObjetivosHUD.activeSelf != mostrar)
-            panelObjetivosHUD.SetActive(mostrar);
+        EnergiaRestaurada = true;
+        ActualizarIluminacion();
+        if (chispasEnergia != null)
+        {
+            chispasEnergia.Play();
+            LabAudioFeedback.ReproducirDescarga(chispasEnergia.transform.position);
+        }
+        if (GameManager.Instance != null)
+            GameManager.Instance.CompletarObjetivo("energia_z2");
+
+        ActualizarPanelObjetivosHUD(true);
+        if (UIManager.Instance != null)
+            UIManager.Instance.MostrarMensaje(
+                "<b><color=#38F28D>¡SISTEMA RESTAURADO!</color></b> Energía de la salida activa — Ya puedes usar el Terminal de Servidores (Oeste)",
+                4.0f);
     }
 
-    private void ActualizarEstadoAlarmaPorTiempo()
+    public void CortarEnergia()
     {
-        if (Time.timeScale == 0f && !alarmaPausadaPorTiempo)
-        {
-            if (audioAlarmaEmergencia != null && audioAlarmaEmergencia.isPlaying) audioAlarmaEmergencia.Pause();
-            if (audioAmbiente != null) audioAmbiente.Pause();
-            alarmaPausadaPorTiempo = true;
-        }
-        else if (Time.timeScale > 0f && alarmaPausadaPorTiempo)
-        {
-            if (audioAmbiente != null) audioAmbiente.UnPause();
-            alarmaPausadaPorTiempo = false;
-        }
+        EnergiaRestaurada = false;
+        ActualizarIluminacion();
+        if (GameManager.Instance != null)
+            GameManager.Instance.objetivos["energia_z2"] = false;
+
+        ActualizarPanelObjetivosHUD(false);
+        if (UIManager.Instance != null)
+            UIManager.Instance.MostrarMensaje("Energía desconectada");
     }
 
-    // -------------------------------------------------------------------------
-    // VISIBILIDAD, NEAR CLIP, CHARACTER CONTROLLER Y COLLIDERS
-    // -------------------------------------------------------------------------
-    private void CorregirVisibilidadYEvitarDesaparicionDeObjetos()
+    public bool PuedeConsultarTerminal()
     {
-        foreach (Camera cam in FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-        {
-            if (cam == null) continue;
-            cam.useOcclusionCulling = false;
-            cam.nearClipPlane = 0.05f;
-            cam.farClipPlane = 250f;
-        }
-
-        GameObject jugador = GameObject.Find("Player");
-        if (jugador != null)
-        {
-            CharacterController cc = jugador.GetComponent<CharacterController>();
-            if (cc != null)
-            {
-                cc.radius = 0.32f;
-                cc.skinWidth = 0.04f;
-                cc.stepOffset = 0.30f;
-            }
-        }
-
-        foreach (SkinnedMeshRenderer smr in FindObjectsByType<SkinnedMeshRenderer>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-        {
-            if (smr == null) continue;
-            smr.updateWhenOffscreen = true;
-            smr.allowOcclusionWhenDynamic = false;
-        }
-
-        foreach (LODGroup lod in FindObjectsByType<LODGroup>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-        {
-            if (lod != null)
-                lod.enabled = false;
-        }
-
-        foreach (MeshRenderer mr in FindObjectsByType<MeshRenderer>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-        {
-            if (mr == null) continue;
-            mr.allowOcclusionWhenDynamic = false;
-        }
-
-        // Desactivar objetos obsoletos o sobredimensionados y sus colliders residuales
-        string[] obsoletos =
-        {
-            "Mesa_Investigacion_Zona2",
-            "Soportes_Tuberias_Zona2",
-            "Letrero_Lab_Salida",
-            "Letrero_Precaucion_Contencion",
-            "Letrero_Peligro_Contencion",
-            "Unidad_Turbina_Vapor_NE",
-            "Intercom_Salida_Norte"
-        };
-        foreach (string nombre in obsoletos)
-        {
-            GameObject go = GameObject.Find(nombre);
-            if (go != null)
-            {
-                foreach (Collider c in go.GetComponentsInChildren<Collider>(true))
-                    c.enabled = false;
-                go.SetActive(false);
-            }
-        }
-
-        // Eliminar colliders residuales de tuberías elevadas o accesorios pequeños
-        string[] sinColliders = { "Modelo_modular_industrial_pipes_01", "Modelo_industrial_microscope" };
-        foreach (string nombre in sinColliders)
-        {
-            GameObject obj = GameObject.Find(nombre);
-            if (obj != null)
-            {
-                foreach (Collider c in obj.GetComponentsInChildren<Collider>(true))
-                    Destroy(c);
-            }
-        }
+        return EnergiaRestaurada;
     }
 
-    private void GarantizarCollidersMobiliarioZona2()
+    private void ActivarAlarma()
     {
-        CajonInteractuable cajon = FindFirstObjectByType<CajonInteractuable>();
-        Recogible recogibleCredencial = null;
-        if (cajon != null)
-        {
-            recogibleCredencial = cajon.GetComponentInChildren<Recogible>(true);
-            if (recogibleCredencial == null)
-            {
-                float mejorDist = 1.2f;
-                foreach (Recogible r in FindObjectsByType<Recogible>(FindObjectsSortMode.None))
-                {
-                    if (r == null) continue;
-                    float d = Vector3.Distance(cajon.transform.position, r.transform.position);
-                    if (d < mejorDist)
-                    {
-                        mejorDist = d;
-                        recogibleCredencial = r;
-                    }
-                }
-            }
-        }
-
-        string[] grupos = { "Mobiliario_de_Laboratorio", "Ambientacion_Industrial_Zona2" };
-        foreach (string nombreGrupo in grupos)
-        {
-            GameObject grupo = GameObject.Find(nombreGrupo);
-            if (grupo == null) continue;
-
-            foreach (Transform hijo in grupo.transform)
-            {
-                if (hijo == null || !hijo.gameObject.activeInHierarchy) continue;
-
-                string n = hijo.name;
-
-                // Excluir únicamente accesorios pequeños sobre mesas, letreros o elementos elevados
-                if (n.Contains("Credencial") || n.Contains("Tarjeta") || n.Contains("PS_") ||
-                    n.Contains("Letrero") || n.Contains("Sign_") || n.Contains("Word_") ||
-                    n.Contains("Intercom") || n.Contains("pipes") || n.Contains("Abrazadera") ||
-                    n.Contains("Monitor") || n.Contains("Teclado") || n.Contains("Raton") ||
-                    n.Contains("microscope") || n.Contains("Turbina") || n.Contains("Airing"))
-                {
-                    foreach (Collider c in hijo.GetComponentsInChildren<Collider>(true))
-                        Destroy(c);
-                    continue;
-                }
-
-                BoxCollider col = hijo.GetComponent<BoxCollider>();
-                if (n == "Gabinete_Cientifico_Interactivo")
-                {
-                    if (col == null) col = hijo.gameObject.AddComponent<BoxCollider>();
-                    col.isTrigger = false;
-                    col.center = new Vector3(0f, 0.48f, 0f);
-                    col.size = new Vector3(1.55f, 0.96f, 1.02f);
-                }
-                else if (nombreGrupo == "Mobiliario_de_Laboratorio" || col == null)
-                {
-                    float factor = n.StartsWith("Silla_") ? 0.82f : 0.92f;
-                    AjustarBoxColliderExactoPorMallas(hijo, factor);
-                    col = hijo.GetComponent<BoxCollider>();
-                }
-
-                if (n == "Consola_Interruptor" && interruptorEnergia != null)
-                    VincularRelayInteractivo(hijo, interruptorEnergia, null);
-                else if (n == "Consola_Control_Energia" && botonAlarma != null)
-                    VincularRelayInteractivo(hijo, botonAlarma, null);
-                else if (n == "Terminal_Cientifico_3D" && terminal != null)
-                    VincularRelayInteractivo(hijo, terminal, null);
-                else if (n == "Gabinete_Cientifico_Interactivo" && cajon != null)
-                    VincularRelayInteractivo(hijo, cajon, recogibleCredencial);
-
-                if (col != null && hijo.position.y < 0.45f && hijo.GetComponent<NavMeshObstacle>() == null)
-                {
-                    NavMeshObstacle obstaculo = hijo.gameObject.AddComponent<NavMeshObstacle>();
-                    obstaculo.shape = NavMeshObstacleShape.Box;
-                    obstaculo.center = col.center;
-                    obstaculo.size = col.size;
-                    obstaculo.carving = true;
-                    obstaculo.carveOnlyStationary = true;
-                }
-            }
-        }
-
-        GameObject revestimientos = GameObject.Find("Revestimientos_y_Estructura");
-        if (revestimientos != null)
-        {
-            foreach (Transform hijo in revestimientos.transform)
-            {
-                if (hijo == null || !hijo.gameObject.activeInHierarchy) continue;
-
-                string n = hijo.name;
-                if (n.StartsWith("Soporte_Tuberias_"))
-                {
-                    AjustarBoxColliderExactoPorMallas(hijo, 0.85f);
-                    BoxCollider col = hijo.GetComponent<BoxCollider>();
-                    if (col != null && hijo.GetComponent<NavMeshObstacle>() == null)
-                    {
-                        NavMeshObstacle obs = hijo.gameObject.AddComponent<NavMeshObstacle>();
-                        obs.shape = NavMeshObstacleShape.Box;
-                        obs.center = col.center;
-                        obs.size = col.size;
-                        obs.carving = true;
-                        obs.carveOnlyStationary = true;
-                    }
-                }
-            }
-        }
-
-        foreach (ArmarioEscondite armario in FindObjectsByType<ArmarioEscondite>(FindObjectsSortMode.None))
-        {
-            if (armario != null && armario.GetComponent<NavMeshObstacle>() == null)
-            {
-                NavMeshObstacle obs = armario.gameObject.AddComponent<NavMeshObstacle>();
-                obs.shape = NavMeshObstacleShape.Box;
-                obs.center = new Vector3(0f, 1.2f, 0f);
-                obs.size = new Vector3(1.5f, 2.4f, 1.1f);
-                obs.carving = true;
-                obs.carveOnlyStationary = true;
-            }
-        }
-
-        GameObject mamparas = GameObject.Find("Mamparas_Vidrio_Contencion_Z2");
-        if (mamparas != null)
-        {
-            foreach (Transform modulo in mamparas.transform)
-            {
-                BoxCollider col = modulo != null ? modulo.GetComponent<BoxCollider>() : null;
-                if (col != null && modulo.GetComponent<NavMeshObstacle>() == null)
-                {
-                    NavMeshObstacle obs = modulo.gameObject.AddComponent<NavMeshObstacle>();
-                    obs.shape = NavMeshObstacleShape.Box;
-                    obs.center = col.center;
-                    obs.size = col.size;
-                    obs.carving = true;
-                    obs.carveOnlyStationary = true;
-                }
-            }
-        }
-
-        foreach (Cajon contenedor in FindObjectsByType<Cajon>(FindObjectsSortMode.None))
-        {
-            BoxCollider col = contenedor != null ? contenedor.GetComponent<BoxCollider>() : null;
-            if (col != null && contenedor.GetComponent<NavMeshObstacle>() == null)
-            {
-                NavMeshObstacle obs = contenedor.gameObject.AddComponent<NavMeshObstacle>();
-                obs.shape = NavMeshObstacleShape.Box;
-                obs.center = col.center;
-                obs.size = col.size;
-                obs.carving = true;
-                obs.carveOnlyStationary = true;
-            }
-        }
+        if (agente != null && botonAlarma != null)
+            agente.Investigar(botonAlarma.transform.position);
+        if (UIManager.Instance != null)
+            UIManager.Instance.MostrarMensaje("Alarma de prueba activada: el guardia investiga el ruido");
     }
 
-    private static void VincularRelayInteractivo(Transform raiz, Interactable destino, Interactable destinoSecundario)
+    private void ActualizarIluminacion()
     {
-        if (raiz == null || (destino == null && destinoSecundario == null)) return;
-
-        InteractableRelay relay = raiz.GetComponent<InteractableRelay>();
-        if (relay == null) relay = raiz.gameObject.AddComponent<InteractableRelay>();
-        relay.destino = destino;
-        relay.destinoSecundario = destinoSecundario;
+        if (luzEmergencia == null) return;
+        luzEmergencia.enabled = true;
+        luzEmergencia.intensity = EnergiaRestaurada ? 2.2f : 0.65f;
+        luzEmergencia.color = EnergiaRestaurada
+            ? new Color(0.42f, 0.85f, 1f)
+            : new Color(1f, 0.16f, 0.12f);
     }
 
-    private static void AjustarBoxColliderExactoPorMallas(Transform raiz, float factorPlanta)
-    {
-        bool inicializado = false;
-        Bounds limitesLocales = default;
-
-        MeshFilter[] filtros = raiz.GetComponentsInChildren<MeshFilter>(true);
-        if (filtros != null)
-        {
-            foreach (MeshFilter mf in filtros)
-            {
-                if (mf == null || mf.sharedMesh == null) continue;
-                Renderer r = mf.GetComponent<Renderer>();
-                if (r != null && !r.enabled) continue;
-
-                EncapsularBoundsMalla(raiz, mf.transform, mf.sharedMesh.bounds, ref inicializado, ref limitesLocales);
-            }
-        }
-
-        SkinnedMeshRenderer[] skinned = raiz.GetComponentsInChildren<SkinnedMeshRenderer>(true);
-        if (skinned != null)
-        {
-            foreach (SkinnedMeshRenderer smr in skinned)
-            {
-                if (smr == null || !smr.enabled) continue;
-                EncapsularBoundsMalla(raiz, null, smr.bounds, ref inicializado, ref limitesLocales);
-            }
-        }
-
-        if (!inicializado) return;
-
-        Vector3 escala = raiz.lossyScale;
-        float minLocalX = 0.05f / Mathf.Max(0.001f, Mathf.Abs(escala.x));
-        float minLocalY = 0.05f / Mathf.Max(0.001f, Mathf.Abs(escala.y));
-        float minLocalZ = 0.05f / Mathf.Max(0.001f, Mathf.Abs(escala.z));
-
-        BoxCollider box = raiz.GetComponent<BoxCollider>();
-        if (box == null) box = raiz.gameObject.AddComponent<BoxCollider>();
-        box.isTrigger = false;
-        box.center = limitesLocales.center;
-        box.size = new Vector3(
-            Mathf.Max(minLocalX, limitesLocales.size.x * factorPlanta),
-            Mathf.Max(minLocalY, limitesLocales.size.y),
-            Mathf.Max(minLocalZ, limitesLocales.size.z * factorPlanta));
-    }
-
-    private static void EncapsularBoundsMalla(Transform raiz, Transform espacioMalla, Bounds mb, ref bool inicializado, ref Bounds limitesLocales)
-    {
-        Vector3 c = mb.center;
-        Vector3 e = mb.extents;
-
-        for (int ix = -1; ix <= 1; ix += 2)
-        for (int iy = -1; iy <= 1; iy += 2)
-        for (int iz = -1; iz <= 1; iz += 2)
-        {
-            Vector3 esquina = c + new Vector3(e.x * ix, e.y * iy, e.z * iz);
-            Vector3 puntoMundo = espacioMalla != null ? espacioMalla.TransformPoint(esquina) : esquina;
-            Vector3 puntoLocalRaiz = raiz.InverseTransformPoint(puntoMundo);
-
-            if (!inicializado)
-            {
-                limitesLocales = new Bounds(puntoLocalRaiz, Vector3.zero);
-                inicializado = true;
-            }
-            else
-            {
-                limitesLocales.Encapsulate(puntoLocalRaiz);
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // PANEL VISUAL DE OBJETIVOS DEL NIVEL EN EL HUD (ENLAZADO EN INSPECTOR)
-    // -------------------------------------------------------------------------
     public void ActualizarPanelObjetivosHUD(bool destelloSistemaRestaurado)
     {
         if (textoObjetivoHUD == null) return;
@@ -589,66 +232,65 @@ public class LaboratorioController : MonoBehaviour
         ActualizarPanelObjetivosHUD(true);
     }
 
-
-    // LUCES PARPADEANTES EN EL TECHO Y CHISPAS DE CORTOCIRCUITO
- 
-    private void EnlazarLucesParpadeantesTecho()
+    private void SincronizarVisibilidadObjetivosHUD()
     {
-        lucesTechoParpadeantes.Clear();
-
-        EnlazarLuzTechoParpadeante("Luz_Fallo_Servidores_Z2", 3.17f, new Vector3(-8.15f, 2.15f, 10.40f));
-        EnlazarLuzTechoParpadeante("Luz_Fallo_Pasillo_Z2", 11.41f, new Vector3(0.00f, 4.82f, 9.60f));
-        EnlazarLuzTechoParpadeante("Luz_Fallo_Energia_Z2", 27.83f, new Vector3(4.50f, 1.25f, 18.10f));
+        if (panelObjetivosHUD == null) return;
+        bool mostrar = UIManager.Instance != null
+            && UIManager.Instance.panelHUD != null
+            && UIManager.Instance.panelHUD.activeInHierarchy
+            && !PanelTerminalZ1.AbiertoZ2;
+        if (panelObjetivosHUD.activeSelf != mostrar)
+            panelObjetivosHUD.SetActive(mostrar);
     }
 
-    private void EnlazarLuzTechoParpadeante(string nombre, float semilla, Vector3 posChispa)
+    private void ActualizarPausaAudio()
     {
-        GameObject go = GameObject.Find(nombre);
-        if (go == null) return;
+        if (audioAmbiente == null) return;
 
-        Light luz = go.GetComponent<Light>();
-        if (luz == null) return;
-
-        Transform tuboTr = go.transform.Find("Luminaria_Fallo_Visual");
-        Renderer rend = tuboTr != null ? tuboTr.GetComponent<Renderer>() : go.GetComponentInChildren<Renderer>();
-        Material mat = rend != null ? rend.material : null;
-
-        lucesTechoParpadeantes.Add(new LuzTechoParpadeante
+        if (Time.timeScale == 0f && !ambientePausado)
         {
-            luz = luz,
-            tuboVisual = rend,
-            materialTubo = mat,
-            semilla = semilla,
-            posicionChispa = posChispa
-        });
+            audioAmbiente.Pause();
+            ambientePausado = true;
+        }
+        else if (Time.timeScale > 0f && ambientePausado)
+        {
+            audioAmbiente.UnPause();
+            ambientePausado = false;
+        }
     }
 
     private void ActualizarParpadeoTechoYChispas()
     {
+        if (lucesTecho == null || lucesTecho.Length == 0) return;
+
         bool datosRecuperados = GameManager.Instance != null && GameManager.Instance.TieneCodigo("codigo_z2");
         bool todoEstable = datosRecuperados && EnergiaRestaurada;
 
         float t = Time.time;
-        for (int i = 0; i < lucesTechoParpadeantes.Count; i++)
+        for (int i = 0; i < lucesTecho.Length; i++)
         {
-            LuzTechoParpadeante item = lucesTechoParpadeantes[i];
-            if (item.luz == null) continue;
+            Light luz = lucesTecho[i];
+            if (luz == null) continue;
+
+            Renderer tubo = (tubosTecho != null && i < tubosTecho.Length) ? tubosTecho[i] : null;
+            float semilla = semillasLuces[i % semillasLuces.Length];
 
             if (todoEstable)
             {
                 Color estable = new Color(0.45f, 0.92f, 1f);
-                item.luz.intensity = 2.4f;
-                item.luz.color = estable;
-                if (item.materialTubo != null)
+                luz.intensity = 2.4f;
+                luz.color = estable;
+                if (tubo != null && tubo.material != null)
                 {
-                    item.materialTubo.color = estable;
-                    if (item.materialTubo.HasProperty("_BaseColor")) item.materialTubo.SetColor("_BaseColor", estable);
+                    tubo.material.color = estable;
+                    if (tubo.material.HasProperty("_BaseColor"))
+                        tubo.material.SetColor("_BaseColor", estable);
                 }
                 continue;
             }
 
-            float ruido = Mathf.PerlinNoise(t * 7.8f, item.semilla);
-            float microCorte = Mathf.Sin(t * 21f + item.semilla) * Mathf.Sin(t * 11.7f + item.semilla * 0.5f);
+            float ruido = Mathf.PerlinNoise(t * 7.8f, semilla);
+            float microCorte = Mathf.Sin(t * 21f + semilla) * Mathf.Sin(t * 11.7f + semilla * 0.5f);
             bool apagadoBreve = ruido < 0.28f || microCorte > 0.70f;
 
             float factor = apagadoBreve ? 0.08f : Mathf.Lerp(0.42f, 1.38f, ruido);
@@ -656,123 +298,29 @@ public class LaboratorioController : MonoBehaviour
                 ? new Color(0.36f, 0.86f, 1f)
                 : new Color(1f, 0.50f, 0.18f);
 
-            item.luz.intensity = 2.45f * factor;
-            item.luz.color = colorBase;
+            luz.intensity = 2.45f * factor;
+            luz.color = colorBase;
 
-            if (item.materialTubo != null)
+            if (tubo != null && tubo.material != null)
             {
                 Color cVisual = colorBase * Mathf.Clamp01(factor);
-                item.materialTubo.color = cVisual;
-                if (item.materialTubo.HasProperty("_BaseColor")) item.materialTubo.SetColor("_BaseColor", cVisual);
+                tubo.material.color = cVisual;
+                if (tubo.material.HasProperty("_BaseColor"))
+                    tubo.material.SetColor("_BaseColor", cVisual);
             }
         }
 
-        // Sonido espacial periódico de descarga/cortocircuito eléctrico en paneles y cables dañados
         if (!todoEstable && Time.timeScale > 0f)
         {
             temporizadorChispaElectrica -= Time.deltaTime;
             if (temporizadorChispaElectrica <= 0f)
             {
                 temporizadorChispaElectrica = Random.Range(3.2f, 6.0f);
-                if (lucesTechoParpadeantes.Count > 0)
-                {
-                    Vector3 posChispa = lucesTechoParpadeantes[Random.Range(0, lucesTechoParpadeantes.Count)].posicionChispa;
-                    LabAudioFeedback.ReproducirDescarga(posChispa);
-                }
+                Light luzElegida = lucesTecho[Random.Range(0, lucesTecho.Length)];
+                if (luzElegida != null)
+                    LabAudioFeedback.ReproducirDescarga(luzElegida.transform.position);
             }
         }
-    }
-
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.color = new Color(0.2f, 0.9f, 1f, 0.45f);
-        Gizmos.DrawWireCube(new Vector3(0.05f, 1.2f, 9.0f), new Vector3(5.2f, 2.4f, 16.0f));
-
-        foreach (ArmarioEscondite armario in FindObjectsByType<ArmarioEscondite>(FindObjectsSortMode.None))
-        {
-            if (armario == null) continue;
-            Gizmos.color = new Color(0.2f, 1f, 0.45f, 0.55f);
-            Gizmos.DrawWireSphere(armario.transform.position + armario.transform.forward * 1.15f + Vector3.up * 0.9f, 0.45f);
-        }
-    }
-
-    private void GarantizarAudioListenerUnico()
-    {
-        AudioListener[] listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
-        GameObject jugador = GameObject.Find("Player");
-        AudioListener listenerJugador = jugador != null
-            ? jugador.GetComponentInChildren<AudioListener>(true)
-            : null;
-
-        if (listenerJugador == null || !listenerJugador.isActiveAndEnabled)
-        {
-            listenerJugador = null;
-            foreach (AudioListener listener in listeners)
-            {
-                if (listener != null && listener.isActiveAndEnabled)
-                {
-                    listenerJugador = listener;
-                    break;
-                }
-            }
-        }
-
-        foreach (AudioListener listener in listeners)
-        {
-            if (listener == null || !listener.isActiveAndEnabled || listener == listenerJugador)
-                continue;
-
-            listener.enabled = false;
-        }
-    }
-
-    public void RestaurarEnergia()
-    {
-        EnergiaRestaurada = true;
-        ActualizarIluminacion();
-        if (chispasEnergia != null) chispasEnergia.Play();
-        if (chispasEnergia != null) LabAudioFeedback.ReproducirDescarga(chispasEnergia.transform.position);
-        if (GameManager.Instance != null)
-            GameManager.Instance.CompletarObjetivo("energia_z2");
-        ActualizarPanelObjetivosHUD(true);
-        if (UIManager.Instance != null)
-            UIManager.Instance.MostrarMensaje(
-                "<b><color=#38F28D>¡SISTEMA RESTAURADO!</color></b> Energía de la salida activa — Ya puedes usar el Terminal de Servidores (Oeste)",
-                4.0f);
-    }
-
-    public void CortarEnergia()
-    {
-        EnergiaRestaurada = false;
-        ActualizarIluminacion();
-        if (GameManager.Instance != null)
-            GameManager.Instance.objetivos["energia_z2"] = false;
-        ActualizarPanelObjetivosHUD(false);
-        if (UIManager.Instance != null)
-            UIManager.Instance.MostrarMensaje("Energía desconectada");
-    }
-
-    public bool PuedeConsultarTerminal()
-    {
-        return EnergiaRestaurada;
-    }
-
-    private void ActivarAlarma()
-    {
-        if (agente != null && botonAlarma != null)
-            agente.Investigar(botonAlarma.transform.position);
-        if (UIManager.Instance != null)
-            UIManager.Instance.MostrarMensaje("Alarma de prueba activada: el guardia investiga el ruido");
-    }
-
-    private void ActualizarIluminacion()
-    {
-        if (luzEmergencia == null) return;
-        luzEmergencia.enabled = true;
-        luzEmergencia.intensity = EnergiaRestaurada ? 2.2f : 0.65f;
-        luzEmergencia.color = EnergiaRestaurada
-            ? new Color(0.42f, 0.85f, 1f)
-            : new Color(1f, 0.16f, 0.12f);
     }
 
     private void OnDestroy()

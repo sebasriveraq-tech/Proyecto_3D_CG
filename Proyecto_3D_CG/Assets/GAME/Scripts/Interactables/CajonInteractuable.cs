@@ -13,6 +13,7 @@ public class CajonInteractuable : Interactable
 
     [Header("Animación del cofre")]
     public Animator animatorCofre;
+    public Recogible recogibleInterno;
     public float elevacionApertura = 0.08f;
 
     [Header("Audio")]
@@ -23,72 +24,15 @@ public class CajonInteractuable : Interactable
     private bool moviendo;
     private Vector3 posicionCerrada;
     private Vector3 posRecogibleCerrada;
-    private Transform huesoTapa;
     private Coroutine animacion;
     private BoxCollider colliderContenedor;
-    private Recogible recogibleInterno;
     private Collider colliderRecogible;
 
     private void Awake()
     {
         colliderContenedor = GetComponent<BoxCollider>();
-        AdaptarVisualContenedor3D();
-        if (frente != null) posicionCerrada = frente.localPosition;
-        InicializarCofreCerrado();
-        mensajePrompt = "Presiona E para abrir el gabinete científico";
-    }
-
-    private void Start()
-    {
-        VincularObjetoInterno();
-        ActualizarAccesibilidadObjetoInterno();
-    }
-
-    private void Update()
-    {
-        // Si el jugador ya recogió el objeto interno, reactivar el collider del contenedor.
-        if (abierto && colliderContenedor != null && !colliderContenedor.enabled && recogibleInterno == null)
-        {
-            colliderContenedor.enabled = true;
-        }
-    }
-
-    private void AdaptarVisualContenedor3D()
-    {
-        Transform gabinetePrimitivo = transform.Find("Gabinete");
-        if (gabinetePrimitivo != null)
-        {
-            MeshRenderer rGab = gabinetePrimitivo.GetComponent<MeshRenderer>();
-            if (rGab != null) rGab.enabled = false;
-        }
-
-        if (frente == null)
-            frente = transform.Find("Frente");
-
         if (frente != null)
-        {
-            // Mantener la bandeja deslizante ajustada al interior del cofre 3D.
-            frente.localPosition = new Vector3(0f, -0.04f, -0.02f);
-            frente.localRotation = Quaternion.identity;
-            frente.localScale = new Vector3(0.66f, 0.035f, 0.38f);
-
-            MeshRenderer rFrente = frente.GetComponent<MeshRenderer>();
-            if (rFrente != null)
-                rFrente.enabled = true;
-        }
-    }
-
-    private void InicializarCofreCerrado()
-    {
-        if (animatorCofre == null)
-        {
-            GameObject gabinete3D = GameObject.Find("Gabinete_Cientifico_Interactivo");
-            if (gabinete3D != null)
-                animatorCofre = gabinete3D.GetComponent<Animator>();
-        }
-
-        if (animatorCofre != null)
-            huesoTapa = BuscarDescendientePorNombre(animatorCofre.transform, "Chest_Top");
+            posicionCerrada = frente.localPosition;
 
         if (animatorCofre != null && animatorCofre.runtimeAnimatorController != null)
         {
@@ -96,41 +40,13 @@ public class CajonInteractuable : Interactable
             animatorCofre.Play(EstadoCerrado, 0, 0f);
             animatorCofre.Update(0f);
         }
-        else if (huesoTapa != null)
-        {
-            huesoTapa.localRotation = Quaternion.identity;
-        }
+        mensajePrompt = "Presiona E para abrir el gabinete científico";
     }
 
-    private static Transform BuscarDescendientePorNombre(Transform raiz, string nombre)
+    private void Start()
     {
-        if (raiz == null) return null;
-        foreach (Transform t in raiz.GetComponentsInChildren<Transform>(true))
-        {
-            if (t != null && t.name == nombre)
-                return t;
-        }
-        return null;
-    }
-
-    private void VincularObjetoInterno()
-    {
-        recogibleInterno = GetComponentInChildren<Recogible>(true);
         if (recogibleInterno == null)
-        {
-            Recogible[] todos = FindObjectsByType<Recogible>(FindObjectsSortMode.None);
-            float mejorDist = 0.95f;
-            foreach (Recogible r in todos)
-            {
-                if (r == null) continue;
-                float d = Vector3.Distance(transform.position, r.transform.position);
-                if (d < mejorDist)
-                {
-                    mejorDist = d;
-                    recogibleInterno = r;
-                }
-            }
-        }
+            recogibleInterno = GetComponentInChildren<Recogible>(true);
 
         if (recogibleInterno != null)
         {
@@ -138,6 +54,13 @@ public class CajonInteractuable : Interactable
             recogibleInterno.transform.SetParent(transform, true);
             posRecogibleCerrada = recogibleInterno.transform.localPosition;
         }
+        ActualizarAccesibilidadObjetoInterno();
+    }
+
+    private void Update()
+    {
+        if (abierto && colliderContenedor != null && !colliderContenedor.enabled && recogibleInterno == null)
+            colliderContenedor.enabled = true;
     }
 
     private void ActualizarAccesibilidadObjetoInterno()
@@ -151,8 +74,6 @@ public class CajonInteractuable : Interactable
         if (colliderRecogible != null)
             colliderRecogible.enabled = abierto;
 
-        // Cuando el contenedor está abierto y aún contiene el objeto, cedemos prioridad
-        // al collider del objeto para que el jugador pueda recogerlo directamente con E.
         if (colliderContenedor != null)
             colliderContenedor.enabled = !abierto;
     }
@@ -180,6 +101,7 @@ public class CajonInteractuable : Interactable
             abierto,
             audioSource,
             abierto ? sonidoAbrir : sonidoCerrar);
+
         if (animacion != null) StopCoroutine(animacion);
         animacion = StartCoroutine(Animar());
     }
@@ -206,11 +128,6 @@ public class CajonInteractuable : Interactable
                 : Vector3.zero);
         }
 
-        bool usarRotacionManualTapa =
-            huesoTapa != null && (animatorCofre == null || animatorCofre.runtimeAnimatorController == null);
-        Quaternion rotTapaInicio = usarRotacionManualTapa ? huesoTapa.localRotation : Quaternion.identity;
-        Quaternion rotTapaDestino = abierto ? Quaternion.Euler(-122.37f, 0f, 0f) : Quaternion.identity;
-
         float duracionAnim = abierto
             ? Mathf.Max(0.05f, duracion)
             : Mathf.Max(0.05f, Mathf.Min(duracion, 0.47f));
@@ -223,16 +140,12 @@ public class CajonInteractuable : Interactable
             frente.localPosition = Vector3.Lerp(inicio, destino, t);
             if (moverRecogible && recogibleInterno != null)
                 recogibleInterno.transform.localPosition = Vector3.Lerp(posRecogibleInicio, posRecogibleDestino, t);
-            if (usarRotacionManualTapa)
-                huesoTapa.localRotation = Quaternion.Slerp(rotTapaInicio, rotTapaDestino, t);
             yield return null;
         }
 
         frente.localPosition = destino;
         if (moverRecogible && recogibleInterno != null)
             recogibleInterno.transform.localPosition = posRecogibleDestino;
-        if (usarRotacionManualTapa)
-            huesoTapa.localRotation = rotTapaDestino;
 
         moviendo = false;
         animacion = null;

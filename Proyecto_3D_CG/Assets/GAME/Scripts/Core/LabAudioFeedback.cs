@@ -4,7 +4,6 @@ using UnityEngine;
 public static class LabAudioFeedback
 {
     private static readonly Dictionary<int, AudioClip> tonos = new Dictionary<int, AudioClip>();
-    private static AudioClip ambiente;
     private static AudioClip recoger;
     private static AudioClip terminal;
     private static AudioClip boton;
@@ -20,7 +19,6 @@ public static class LabAudioFeedback
     private static AudioClip descarga;
     private static AudioClip accesoDenegadoClip;
     private static AudioClip sistemaRestauradoClip;
-    private static AudioClip alarmaEmergenciaElectricaZ2;
 
     public static void ReproducirInteraccion(Vector3 posicion, string tipo)
     {
@@ -303,72 +301,6 @@ public static class LabAudioFeedback
             tonos[clave] = clip;
         }
         AudioSource.PlayClipAtPoint(clip, posicion, volumen * factor);
-    }
-
-    public static AudioClip ObtenerAmbiente()
-    {
-        if (Cargar(ref ambiente, "Zona2/Ambience/AMB_Fondo_Laboratorio_Z2") != null)
-            return ambiente;
-        return Cargar(ref ambiente, "Zona2/Ambience/AMB_Sala_Servidores_Loop");
-    }
-
-    public static AudioClip ObtenerAlarmaEmergenciaElectricaZ2()
-    {
-        if (alarmaEmergenciaElectricaZ2 != null)
-            return alarmaEmergenciaElectricaZ2;
-
-        const int sr = 22050;
-        const float duracion = 4.0f;
-        int muestras = Mathf.RoundToInt(sr * duracion);
-        float[] datos = new float[muestras];
-
-        float picoMax = 0f;
-        for (int i = 0; i < muestras; i++)
-        {
-            float t = (float)i / sr;
-            // 1) Zumbido eléctrico industrial de red (60 Hz + 120 Hz + armónico leve 180 Hz)
-            float hum = Mathf.Sin(2f * Mathf.PI * 60f * t) * 0.24f
-                      + Mathf.Sin(2f * Mathf.PI * 120f * t) * 0.13f
-                      + Mathf.Sin(2f * Mathf.PI * 180f * t) * 0.06f;
-
-            // 2) Baliza de emergencia bitonal cada 2.0 segundos (clara, sin saturar ni resultar estridente)
-            float ciclo = t % 2.0f;
-            float baliza = 0f;
-            if (ciclo < 0.56f)
-            {
-                float u = ciclo / 0.56f;
-                float env = Mathf.Sin(Mathf.PI * u);
-                float freq = ciclo < 0.28f ? 420f : 340f;
-                baliza = Mathf.Sin(2f * Mathf.PI * freq * t) * env * 0.40f;
-            }
-
-            // 3) Chisporroteo eléctrico intermitente determinista en ciclos de 4s
-            float ruido = Mathf.Sin(i * 12.9898f) * 43758.5453f;
-            float frac = ruido - Mathf.Floor(ruido);
-            bool ventanaChispa = (t > 0.72f && t < 0.86f) || (t > 2.38f && t < 2.55f);
-            float microChispa = ventanaChispa ? ((frac * 2f - 1f) * 0.16f) : 0f;
-
-            float muestra = hum + baliza + microChispa;
-            datos[i] = muestra;
-            float absM = Mathf.Abs(muestra);
-            if (absM > picoMax) picoMax = absM;
-        }
-
-        if (picoMax > 0.0001f)
-        {
-            float escala = 0.82f / picoMax;
-            for (int i = 0; i < muestras; i++)
-                datos[i] = Mathf.Clamp(datos[i] * escala, -0.85f, 0.85f);
-        }
-
-        alarmaEmergenciaElectricaZ2 = AudioClip.Create("AMB_Alarma_Emergencia_Z2", muestras, 1, sr, false);
-        alarmaEmergenciaElectricaZ2.SetData(datos, 0);
-        return alarmaEmergenciaElectricaZ2;
-    }
-
-    public static AudioClip ObtenerMaquinaria()
-    {
-        return ObtenerAmbiente();
     }
 
     public static void ReproducirDanioJugador(Vector3 posicion)

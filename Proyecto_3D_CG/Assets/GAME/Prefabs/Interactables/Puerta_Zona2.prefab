@@ -130,3 +130,4 @@ MonoBehaviour:
   idPuerta: puerta_z2
   escenaDestino: Zona2_Laboratorio
   duracionApertura: 0.8
+  particulasVapor: {fileID: 3249078627719223504, guid: a8b9c0d1e2f34567890123456789abcd, type: 3}

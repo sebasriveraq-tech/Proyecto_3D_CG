@@ -26,21 +26,17 @@ public class InterruptorInteractuable : Interactable
 
     private void Awake()
     {
-        IntegrarConConsola3D();
         if (balizaFlotanteZ2 != null)
             balizaBaseY = balizaFlotanteZ2.localPosition.y;
 
-        if (gameObject.scene.name == "Zona2_Laboratorio")
+        if (panelCircuitosZ2 != null)
         {
-            if (panelCircuitosZ2 != null)
-            {
-                panelCircuitosZ2.Configurar(
-                    PanelMiniJuegoZ2.TipoMiniJuego.ReconexionCircuitos,
-                    "",
-                    encendido,
-                    CompletarReconexionCircuitos,
-                    transform);
-            }
+            panelCircuitosZ2.Configurar(
+                PanelMiniJuegoZ2.TipoMiniJuego.ReconexionCircuitos,
+                "",
+                encendido,
+                CompletarReconexionCircuitos,
+                transform);
         }
         ActualizarVisual();
     }
@@ -63,63 +59,6 @@ public class InterruptorInteractuable : Interactable
             encendido = true;
             alEncender?.Invoke();
             ActualizarVisual();
-        }
-    }
-
-    private void IntegrarConConsola3D()
-    {
-        Transform cajaObj = transform.Find("Caja");
-        if (palanca == null) palanca = transform.Find("Palanca");
-        Transform indObj = transform.Find("Indicador");
-        if (indicador == null && indObj != null) indicador = indObj.GetComponent<Renderer>();
-
-        bool tieneConsola3D = GameObject.Find("Consola_Interruptor") != null;
-        if (!tieneConsola3D)
-        {
-            foreach (Transform hijo in transform)
-            {
-                if (hijo != cajaObj && hijo != palanca && hijo != indObj && hijo.GetComponentInChildren<Renderer>(true) != null)
-                {
-                    tieneConsola3D = true;
-                    break;
-                }
-            }
-        }
-
-        if (tieneConsola3D)
-        {
-            if (cajaObj != null)
-            {
-                cajaObj.localPosition = new Vector3(0f, 0.66f, -0.195f);
-                cajaObj.localRotation = Quaternion.identity;
-                cajaObj.localScale = new Vector3(0.24f, 0.28f, 0.045f);
-            }
-
-            if (palanca != null)
-            {
-                palanca.localPosition = new Vector3(0f, 0.63f, -0.235f);
-                palanca.localScale = new Vector3(0.042f, 0.135f, 0.042f);
-            }
-
-            if (indObj != null)
-            {
-                indObj.localPosition = new Vector3(0f, 0.755f, -0.222f);
-                indObj.localScale = new Vector3(0.055f, 0.055f, 0.055f);
-            }
-
-            BoxCollider col = GetComponent<BoxCollider>();
-            if (col != null)
-            {
-                col.center = new Vector3(0f, 0.72f, 0f);
-                col.size = new Vector3(0.72f, 1.42f, 0.58f);
-            }
-        }
-
-        if (luzEstado == null)
-        {
-            Transform luzExistente = transform.Find("Luz_Estado_Interruptor");
-            if (luzExistente != null)
-                luzEstado = luzExistente.GetComponent<Light>();
         }
     }
 
@@ -149,7 +88,7 @@ public class InterruptorInteractuable : Interactable
 
     private void ActualizarVisual()
     {
-        if (gameObject.scene.name == "Zona2_Laboratorio")
+        if (panelCircuitosZ2 != null)
         {
             mensajePrompt = encendido
                 ? "SISTEMA RESTAURADO — Energía de la salida y servidores activa (E para ver circuito)"
@@ -160,14 +99,7 @@ public class InterruptorInteractuable : Interactable
             palanca.localRotation = Quaternion.Euler(encendido ? -35f : 35f, 0f, 0f);
 
         Color c = encendido ? colorEncendido : colorApagado;
-        if (indicador != null)
-        {
-            Material mat = indicador.material;
-            mat.color = c;
-            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c);
-            mat.EnableKeyword("_EMISSION");
-            if (mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", c * 1.8f);
-        }
+        AplicarColorEmisivo(indicador, c);
 
         Color cTerminal = encendido
             ? new Color(0.18f, 0.95f, 0.54f)

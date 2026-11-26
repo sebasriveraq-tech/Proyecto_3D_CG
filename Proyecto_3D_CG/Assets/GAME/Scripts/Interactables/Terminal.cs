@@ -52,7 +52,7 @@ public class Terminal : Interactable
                     CompletarRecuperacionDatosZ2,
                     transform);
             }
-            ConfigurarIndicadorVisualZ2();
+            ActualizarIndicadorVisualZ2();
         }
     }
 
@@ -88,23 +88,6 @@ public class Terminal : Interactable
             balizaFlotanteZ2.localPosition = new Vector3(p.x, yOffset, p.z);
             balizaFlotanteZ2.Rotate(0f, 55f * Time.unscaledDeltaTime, 0f, Space.Self);
         }
-    }
-
-    private void ConfigurarIndicadorVisualZ2()
-    {
-        MeshRenderer raizRenderer = GetComponent<MeshRenderer>();
-        if (raizRenderer != null)
-            raizRenderer.enabled = false;
-
-        // Ajustar BoxCollider al volumen exacto de la consola/estación sin bloquear pasillos vecinos
-        BoxCollider box = GetComponent<BoxCollider>();
-        if (box != null)
-        {
-            box.center = new Vector3(0f, 0.05f, 0f);
-            box.size = new Vector3(0.88f, 1.05f, 1.25f);
-        }
-
-        ActualizarIndicadorVisualZ2();
     }
 
     private void ActualizarIndicadorVisualZ2()
