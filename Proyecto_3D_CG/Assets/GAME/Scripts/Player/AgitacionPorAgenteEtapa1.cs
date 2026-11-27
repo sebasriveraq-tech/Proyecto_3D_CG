@@ -153,15 +153,11 @@ public sealed class AgitacionPorAgenteEtapa1 : MonoBehaviour
 
     private void PrepararEfectoVista()
     {
-        int capa = LayerMask.NameToLayer("EfectoCamaraJugador");
+        if (camara == null) return;
 
-        if (camara == null || capa < 0)
-        {
-            Debug.LogWarning(
-                "No se encontró la cámara o la capa EfectoCamaraJugador."
-            );
-            return;
-        }
+        int capa = LayerMask.NameToLayer("EfectoCamaraJugador");
+        if (capa < 0)
+            capa = 0;
 
         ajusteCamara = camara.GetUniversalAdditionalCameraData();
 
