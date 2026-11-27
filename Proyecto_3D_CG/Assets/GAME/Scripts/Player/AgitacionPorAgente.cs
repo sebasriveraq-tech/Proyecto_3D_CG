@@ -80,8 +80,9 @@ public sealed class AgitacionPorAgente : MonoBehaviour
 
     private void PrepararEfectoVista()
     {
+        if (camara == null) return;
         int capa = LayerMask.NameToLayer("EfectoCamaraJugador");
-        if (camara == null || capa < 0) return;
+        if (capa < 0) capa = 0;
 
         ajusteCamara = camara.GetUniversalAdditionalCameraData();
         GameObject objetoVolumen = new GameObject("Efecto de proximidad");
